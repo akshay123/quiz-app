@@ -16,33 +16,26 @@ export default async function AdminPage() {
   return (
     <>
       <div style={{
-        background: "linear-gradient(135deg, #0f7b6c 0%, #0b5a4f 100%)",
+        background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
         color: "white",
-        padding: "2rem",
-        borderBottom: "1px solid #ccc"
+        padding: "2rem 1.5rem",
+        borderBottom: "1px solid var(--border)"
       }}>
-        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <h1 style={{ margin: "0 0 0.5rem" }}>Welcome, {user.email.split("@")[0]}</h1>
-          <p style={{ margin: "0", opacity: 0.9 }}>Manage your quiz games and host live events</p>
+        <div className="container-wide">
+          <h1 style={{ margin: "0 0 0.5rem", color: "white" }}>Welcome, {user.email.split("@")[0]}</h1>
+          <p style={{ margin: "0", opacity: 0.9, color: "white" }}>Manage your quiz games and host live events</p>
         </div>
       </div>
       <GamesListContent user={user} />
       <div style={{
         position: "fixed",
-        bottom: "2rem",
-        right: "2rem",
+        bottom: "1.5rem",
+        right: "1.5rem",
         display: "flex",
         gap: "1rem"
       }}>
         <form action="/auth/signout" method="post">
-          <button type="submit" style={{
-            padding: "0.5rem 1rem",
-            background: "#e5e7eb",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "0.85rem"
-          }}>
+          <button type="submit" className="btn-secondary">
             Sign Out
           </button>
         </form>

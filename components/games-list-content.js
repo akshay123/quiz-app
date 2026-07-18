@@ -30,33 +30,22 @@ export default function GamesListContent({ user }) {
     fetchGames();
   }
 
-  const statusColors = {
-    draft: "#6b7280",
-    published: "#2563eb",
-    lobby: "#f59e0b",
-    active: "#10b981",
-    completed: "#8b5cf6",
-    cancelled: "#dc2626"
+  const statusClass = {
+    draft: "badge-draft",
+    published: "badge-published",
+    lobby: "badge-lobby",
+    active: "badge-active",
+    completed: "badge-completed",
+    cancelled: "badge-cancelled"
   };
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-          <h1>My Games</h1>
-          <div style={{ display: "flex", gap: "1rem" }}>
-            <Link
-              href="/admin/import"
-              className="link-btn"
-              style={{
-                padding: "0.75rem 1rem",
-                background: "#2563eb",
-                color: "white",
-                borderRadius: "8px",
-                fontWeight: "600",
-                textDecoration: "none"
-              }}
-            >
+    <main className="page-shell" style={{ display: "block", minHeight: "auto" }}>
+      <div className="container-wide">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+          <h1 style={{ margin: 0 }}>My Games</h1>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <Link href="/admin/import" className="link-btn">
               📤 Upload Excel
             </Link>
             <SeedDataButton onGameCreated={handleGameCreated} />
@@ -66,39 +55,34 @@ export default function GamesListContent({ user }) {
         {loading ? (
           <p>Loading games...</p>
         ) : games.length === 0 ? (
-          <div className="card">
+          <div className="card" style={{ width: "100%" }}>
             <p>No games yet. Create one to get started!</p>
             <div style={{ marginTop: "1rem" }}>
               <SeedDataButton onGameCreated={handleGameCreated} />
             </div>
           </div>
         ) : (
-          <div style={{ display: "grid", gap: "1rem" }}>
+          <div className="grid-responsive-list" style={{ display: "grid", gap: "1rem" }}>
             {games.map((game) => (
-              <div key={game.id} className="card" style={{ cursor: "pointer" }} onClick={() => router.push(`/admin/games/${game.id}`)}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+              <div
+                key={game.id}
+                className="card"
+                style={{ width: "100%", cursor: "pointer" }}
+                onClick={() => router.push(`/admin/games/${game.id}`)}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", flexWrap: "wrap", gap: "0.75rem" }}>
                   <div>
                     <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
-                    <p style={{ margin: "0.25rem 0", color: "#6b7280", fontSize: "0.9rem" }}>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
                       {game.question_count} questions • {game.player_count} players
                     </p>
                     {game.room_code && (
-                      <p style={{ margin: "0", color: "#8b5cf6", fontSize: "0.85rem", fontFamily: "monospace" }}>
+                      <p style={{ margin: "0", color: "var(--accent-soft)", fontSize: "0.85rem", fontFamily: "monospace" }}>
                         Code: {game.room_code}
                       </p>
                     )}
                   </div>
-                  <div
-                    style={{
-                      padding: "0.5rem 1rem",
-                      borderRadius: "8px",
-                      background: statusColors[game.status] || "#999",
-                      color: "white",
-                      fontSize: "0.85rem",
-                      fontWeight: "600",
-                      textTransform: "capitalize"
-                    }}
-                  >
+                  <div className={`badge ${statusClass[game.status] || ""}`}>
                     {game.status}
                   </div>
                 </div>

@@ -46,87 +46,60 @@ export default function JoinPage() {
   }
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <div style={{ maxWidth: "500px", margin: "5rem auto" }}>
-        <div className="card">
-          <h1 style={{ textAlign: "center", marginBottom: "0.5rem" }}>Join Game</h1>
-          <p style={{ textAlign: "center", color: "#6b7280", marginBottom: "2rem" }}>
-            Enter the game code from your host
-          </p>
+    <main>
+      <div className="card" style={{ maxWidth: "460px" }}>
+        <h1 style={{ textAlign: "center", marginBottom: "0.5rem" }}>Join Game</h1>
+        <p style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          Enter the game code from your host
+        </p>
 
-          <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Game Code</label>
-              <input
-                type="text"
-                placeholder="e.g. ABC123"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  border: "1px solid #d9e1eb",
-                  borderRadius: "8px",
-                  fontSize: "1.1rem",
-                  letterSpacing: "2px",
-                  textAlign: "center",
-                  fontWeight: "600",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Your Name</label>
-              <input
-                type="text"
-                placeholder="Enter your display name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                disabled={loading}
-                maxLength="20"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  border: "1px solid #d9e1eb",
-                  borderRadius: "8px",
-                  fontSize: "1rem",
-                  boxSizing: "border-box"
-                }}
-              />
-            </div>
-
-            {error && (
-              <p style={{ color: "#dc2626", background: "#fee2e2", padding: "0.75rem", borderRadius: "8px", margin: "0" }}>
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !roomCode.trim() || !displayName.trim()}
+        <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div>
+            <label>Game Code</label>
+            <input
+              type="text"
+              placeholder="e.g. ABC123"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              disabled={loading}
               style={{
-                padding: "0.75rem",
-                background: "#0f7b6c",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "1rem",
-                fontWeight: "600",
-                cursor: loading || !roomCode.trim() || !displayName.trim() ? "not-allowed" : "pointer",
-                opacity: loading || !roomCode.trim() || !displayName.trim() ? 0.7 : 1
+                fontSize: "1.1rem",
+                letterSpacing: "2px",
+                textAlign: "center"
               }}
-            >
-              {loading ? "Joining..." : "Join Game"}
-            </button>
-          </form>
-
-          <div style={{ marginTop: "2rem", textAlign: "center", paddingTop: "1rem", borderTop: "1px solid #e5e7eb" }}>
-            <Link href="/" style={{ color: "#0f7b6c", textDecoration: "none", fontSize: "0.9rem" }}>
-              ← Back Home
-            </Link>
+            />
           </div>
+
+          <div>
+            <label>Your Name</label>
+            <input
+              type="text"
+              placeholder="Enter your display name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              disabled={loading}
+              maxLength="20"
+            />
+          </div>
+
+          {error && (
+            <p style={{ color: "var(--danger)", background: "var(--danger-bg)", padding: "0.75rem", borderRadius: "var(--radius-sm)", margin: "0" }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !roomCode.trim() || !displayName.trim()}
+          >
+            {loading ? "Joining..." : "Join Game"}
+          </button>
+        </form>
+
+        <div style={{ marginTop: "1.5rem", textAlign: "center", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
+          <Link href="/" style={{ fontSize: "0.9rem" }}>
+            ← Back Home
+          </Link>
         </div>
       </div>
     </main>

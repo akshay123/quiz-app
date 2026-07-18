@@ -3,6 +3,12 @@ export const metadata = {
   description: "Admin and player app powered by Supabase"
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1
+};
+
 import "./globals.css";
 
 export default function RootLayout({ children }) {

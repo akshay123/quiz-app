@@ -40,7 +40,7 @@ export default function LoginPage() {
           </button>
         </div>
         {error ? (
-          <p style={{ marginTop: "1rem", color: "#b42318" }}>{error}</p>
+          <p style={{ marginTop: "1rem", color: "var(--danger)" }}>{error}</p>
         ) : null}
       </div>
     </main>

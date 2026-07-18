@@ -19,6 +19,7 @@ export default function PlayPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
 
   // Load player session and verify
   useEffect(() => {
@@ -138,18 +139,15 @@ export default function PlayPage() {
   }
 
   if (loading) {
-    return <main style={{ padding: "2rem" }}><p>Loading game...</p></main>;
+    return <main><p>Loading game...</p></main>;
   }
 
   if (error || !player || !game) {
     return (
-      <main style={{ padding: "2rem" }}>
+      <main>
         <div className="card">
-          <p style={{ color: "#dc2626" }}>Error: {error || "Session invalid"}</p>
-          <button
-            onClick={() => router.push("/play/join")}
-            style={{ marginTop: "1rem", padding: "0.75rem 1rem", background: "#0f7b6c", color: "white", border: "none", borderRadius: "8px", cursor: "pointer" }}
-          >
+          <p style={{ color: "var(--danger)" }}>Error: {error || "Session invalid"}</p>
+          <button onClick={() => router.push("/play/join")} style={{ marginTop: "1rem" }}>
             Back to Join
           </button>
         </div>
@@ -157,42 +155,129 @@ export default function PlayPage() {
     );
   }
 
+  const myRankIndex = leaderboard.findIndex((p) => p.display_name === player.display_name);
+  const myEntry = myRankIndex >= 0 ? leaderboard[myRankIndex] : null;
+  const top3 = leaderboard.slice(0, 3);
+  const isInTop3 = myRankIndex >= 0 && myRankIndex < 3;
+
+  const rankChip = myEntry ? (
+    <div className="rank-chip">
+      🏅 #{myEntry.rank} of {leaderboard.length} · {myEntry.total_score} pts
+    </div>
+  ) : null;
+
+  const quickView = (
+    <div className="quick-leaderboard">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+        <strong style={{ fontSize: "0.85rem" }}>🏆 Quick View</strong>
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ padding: "0.3rem 0.7rem", minHeight: "auto", fontSize: "0.75rem" }}
+          onClick={() => setShowLeaderboardModal(true)}
+        >
+          View Full
+        </button>
+      </div>
+      {top3.length === 0 ? (
+        <p style={{ fontSize: "0.85rem", margin: 0 }}>No players yet</p>
+      ) : (
+        <>
+          {top3.map((p) => (
+            <div
+              key={`${p.rank}-${p.display_name}`}
+              className={`quick-leaderboard-row${p.display_name === player.display_name ? " is-me" : ""}`}
+            >
+              <span>#{p.rank} {p.display_name}{p.display_name === player.display_name ? " (You)" : ""}</span>
+              <span>{p.total_score}</span>
+            </div>
+          ))}
+          {!isInTop3 && myEntry && (
+            <>
+              <div className="quick-leaderboard-sep">···</div>
+              <div className="quick-leaderboard-row is-me">
+                <span>#{myEntry.rank} {myEntry.display_name} (You)</span>
+                <span>{myEntry.total_score}</span>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const leaderboardModal = showLeaderboardModal ? (
+    <div className="modal-overlay" onClick={() => setShowLeaderboardModal(false)}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <h3 style={{ margin: 0 }}>🏆 Full Leaderboard</h3>
+          <button type="button" className="btn-secondary" style={{ padding: "0.4rem 0.8rem", minHeight: "auto" }} onClick={() => setShowLeaderboardModal(false)}>
+            ✕ Close
+          </button>
+        </div>
+        <div style={{ display: "grid", gap: "0.5rem" }}>
+          {leaderboard.length === 0 ? (
+            <p>No players yet</p>
+          ) : (
+            leaderboard.map((p) => (
+              <div
+                key={`${p.rank}-${p.display_name}`}
+                style={{
+                  padding: "0.75rem",
+                  background: p.display_name === player.display_name ? "var(--surface-muted)" : "var(--surface)",
+                  borderRadius: "var(--radius-sm)",
+                  border: p.display_name === player.display_name ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+              >
+                <div style={{ fontWeight: "600", fontSize: "0.9rem" }}>
+                  #{p.rank} {p.display_name}
+                  {p.display_name === player.display_name && " (You)"}
+                </div>
+                <div style={{ fontWeight: "700", color: "var(--accent-dark)", fontSize: "1rem" }}>{p.total_score}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <main style={{ padding: "1.5rem", background: "linear-gradient(135deg, #0f7b6c 0%, #0b5a4f 100%)", minHeight: "100vh" }}>
-      <div style={{ maxWidth: "900px", margin: "0 auto", display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
+    <main style={{ background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)", minHeight: "100vh" }}>
+      <div className="grid-responsive-2" style={{ width: "min(1000px, 100%)", margin: "0 auto" }}>
         {/* Main Question Area */}
         <div>
-          <div style={{ textAlign: "center", color: "white", marginBottom: "2rem" }}>
-            <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.5rem" }}>{game.name}</h1>
-            <p style={{ margin: "0", opacity: 0.9, fontSize: "0.9rem" }}>
+          <div style={{ textAlign: "center", color: "white", marginBottom: "1.5rem" }}>
+            <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.5rem", color: "white" }}>{game.name}</h1>
+            <p style={{ margin: "0", opacity: 0.9, fontSize: "0.9rem", color: "white" }}>
               Welcome, <strong>{player.display_name}</strong> | Score: <strong>{player.total_score}</strong>
             </p>
           </div>
 
           {game.status === "published" || game.status === "lobby" ? (
             <div className="card">
-              <h2 style={{ textAlign: "center", color: "#6b7280" }}>Waiting for game to start...</h2>
-              <p style={{ textAlign: "center", margin: "1rem 0 0", color: "#999" }}>Your host will start the game shortly</p>
+              <h2 style={{ textAlign: "center" }}>Waiting for game to start...</h2>
+              <p style={{ textAlign: "center", margin: "1rem 0 0" }}>Your host will start the game shortly</p>
             </div>
           ) : game.status === "active" ? (
             question ? (
               <div className="card">
-                <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <p style={{ margin: "0", color: "#6b7280", fontSize: "0.9rem" }}>
-                    Question {game.current_question_index}
-                  </p>
-                  <div
-                    style={{
-                      padding: "0.4rem 0.8rem",
-                      background: timeLeft <= 10 ? "#fca5a5" : "#d1fae5",
-                      color: timeLeft <= 10 ? "#991b1b" : "#065f46",
-                      borderRadius: "6px",
-                      fontWeight: "600",
-                      fontSize: "0.9rem"
-                    }}
-                  >
-                    ⏱ {timeLeft}s
+                <div className="sticky-top" style={{ background: "var(--surface)", marginBottom: "1rem", paddingBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <p style={{ margin: "0", fontSize: "0.9rem" }}>
+                      Question {game.current_question_index}
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      {rankChip}
+                      <div className={`pill ${timeLeft <= 10 ? "pill-timer-urgent" : ""}`}>
+                        ⏱ {timeLeft}s
+                      </div>
+                    </div>
                   </div>
+                  <div className="show-mobile-only">{quickView}</div>
                 </div>
 
                 <h2 style={{ fontSize: "1.3rem", marginBottom: "1.5rem", lineHeight: "1.4" }}>{question.question_text}</h2>
@@ -203,62 +288,61 @@ export default function PlayPage() {
                       key={choice.id}
                       onClick={() => !submitted && submitAnswer(choice.id)}
                       disabled={submitted || timeLeft === 0}
+                      className={selectedChoiceId === choice.id ? "" : "btn-secondary"}
                       style={{
                         padding: "1rem",
-                        border: `2px solid ${selectedChoiceId === choice.id ? "#0f7b6c" : "#d9e1eb"}`,
-                        borderRadius: "8px",
-                        background: selectedChoiceId === choice.id ? "#d1fae5" : "white",
                         textAlign: "left",
-                        cursor: submitted || timeLeft === 0 ? "not-allowed" : "pointer",
+                        justifyContent: "flex-start",
                         fontSize: "1rem",
-                        transition: "all 0.2s",
-                        opacity: submitted || timeLeft === 0 ? 0.7 : 1
+                        minHeight: "auto"
                       }}
                     >
-                      <strong>{choice.choice_key}.</strong> {choice.choice_text}
+                      <strong>{choice.choice_key}.</strong>&nbsp;{choice.choice_text}
                     </button>
                   ))}
                 </div>
 
                 {submitted ? (
-                  <p style={{ marginTop: "1rem", textAlign: "center", color: "#10b981", fontWeight: "600" }}>
+                  <p style={{ marginTop: "1rem", textAlign: "center", color: "var(--accent)", fontWeight: "600" }}>
                     ✓ Answer submitted! Waiting for next question...
                     {lastResult?.points_awarded !== undefined && ` (+${lastResult.points_awarded} pts)`}
                   </p>
                 ) : timeLeft === 0 ? (
-                  <p style={{ marginTop: "1rem", textAlign: "center", color: "#dc2626", fontWeight: "600" }}>⏹ Time's up!</p>
+                  <p style={{ marginTop: "1rem", textAlign: "center", color: "var(--danger)", fontWeight: "600" }}>⏹ Time's up!</p>
                 ) : null}
               </div>
             ) : (
               <div className="card">
-                <h2 style={{ textAlign: "center", color: "#6b7280" }}>Preparing next question...</h2>
+                <h2 style={{ textAlign: "center" }}>Preparing next question...</h2>
+                <div className="show-mobile-only">{quickView}</div>
               </div>
             )
           ) : game.status === "completed" ? (
             <div className="card">
-              <h2 style={{ textAlign: "center", color: "#10b981" }}>✓ Game Completed!</h2>
-              <p style={{ textAlign: "center", margin: "1rem 0 0", color: "#6b7280" }}>
+              <h2 style={{ textAlign: "center", color: "var(--accent)" }}>✓ Game Completed!</h2>
+              <p style={{ textAlign: "center", margin: "1rem 0 0" }}>
                 You scored <strong>{player.total_score} points</strong>
               </p>
             </div>
           ) : null}
         </div>
 
-        {/* Leaderboard Sidebar */}
-        <div className="card" style={{ height: "fit-content", position: "sticky", top: "1.5rem" }}>
+        {/* Leaderboard Sidebar (desktop/tablet permanent panel) */}
+        <div className="card show-desktop-only" style={{ height: "fit-content", position: "sticky", top: "1.5rem" }}>
+          {rankChip && <div style={{ marginBottom: "1rem" }}>{rankChip}</div>}
           <h3 style={{ margin: "0 0 1rem" }}>🏆 Leaderboard</h3>
           <div style={{ display: "grid", gap: "0.5rem" }}>
             {leaderboard.length === 0 ? (
-              <p style={{ color: "#6b7280", fontSize: "0.9rem" }}>No players yet</p>
+              <p style={{ fontSize: "0.9rem" }}>No players yet</p>
             ) : (
               leaderboard.slice(0, 10).map((p) => (
                 <div
                   key={`${p.rank}-${p.display_name}`}
                   style={{
                     padding: "0.75rem",
-                    background: p.display_name === player.display_name ? "#eff6ff" : "#f9fafb",
-                    borderRadius: "6px",
-                    border: p.display_name === player.display_name ? "2px solid #2563eb" : "1px solid #e5e7eb",
+                    background: p.display_name === player.display_name ? "var(--surface-muted)" : "var(--surface)",
+                    borderRadius: "var(--radius-sm)",
+                    border: p.display_name === player.display_name ? "2px solid var(--accent)" : "1px solid var(--border)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center"
@@ -268,13 +352,15 @@ export default function PlayPage() {
                     #{p.rank} {p.display_name}
                     {p.display_name === player.display_name && " (You)"}
                   </div>
-                  <div style={{ fontWeight: "700", color: "#0f7b6c", fontSize: "1rem" }}>{p.total_score}</div>
+                  <div style={{ fontWeight: "700", color: "var(--accent-dark)", fontSize: "1rem" }}>{p.total_score}</div>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
+      {leaderboardModal}
     </main>
   );
 }
+

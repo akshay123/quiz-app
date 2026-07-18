@@ -40,21 +40,12 @@ export default function SeedDataButton({ onGameCreated }) {
       <button
         onClick={seedSampleGame}
         disabled={loading}
-        style={{
-          padding: "0.75rem 1rem",
-          background: "#8b5cf6",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          cursor: loading ? "not-allowed" : "pointer",
-          fontWeight: "600",
-          opacity: loading ? 0.7 : 1
-        }}
+        className="btn-warm"
       >
         {loading ? "Seeding..." : "📚 Load Sample Game"}
       </button>
       {message && (
-        <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: message.includes("Error") ? "#dc2626" : "#16a34a" }}>
+        <p style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: message.includes("Error") ? "var(--danger)" : "var(--accent)" }}>
           {message}
         </p>
       )}

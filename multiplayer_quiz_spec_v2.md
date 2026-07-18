@@ -836,6 +836,28 @@ The leaderboard shows:
 - Tie-breaking is deterministic (see Section 9.5)
 - The leaderboard is never recalculated mid-question
 
+### 17.5 Persistent Position and Quick View (during questions)
+
+Players should never have to leave the question screen to know where they
+stand. The question screen (Section 19.3) always includes:
+
+- **Persistent rank chip:** a small, always-visible indicator showing the
+  player's current rank and score (e.g. "#4 of 23 · 14 pts"), positioned in
+  the question header so it never scrolls out of view. This reflects the
+  leaderboard as of the end of the previous question (scores never change
+  mid-question, per Section 17.4), so it stays accurate and requires no
+  extra network calls.
+- **Quick View:** a compact, always-visible peek of the top 3 players plus
+  the current player's own row (if they are outside the top 3), rendered
+  inline near the rank chip without navigating away from the question.
+- **Full Leaderboard action:** a single tap/click from the Quick View opens
+  the complete ranked list (all players) as an overlay, dismissible with one
+  tap, without losing the in-progress question state or timer.
+
+On desktop/tablet widths (≥ 1024px), the Quick View and persistent rank chip
+may be rendered as a permanent side panel instead of a collapsed widget,
+per the responsive layout rules in Section 25.
+
 ---
 
 ## 18. Administrator Screens
@@ -958,21 +980,27 @@ All player screens are designed mobile-first with large touch targets (minimum 4
 - If arriving via direct link, room code is pre-filled and read-only
 
 ### 19.2 Lobby
-
-```
-+---------------------------+
-|    Tax Challenge 2026     |
+#4 of 23 · 14 pts        |  <- persistent rank chip
+|  🏆 1.Alice 27 2.Bob 24   |  <- quick view (top 3 + you)
+|     3.Carol 22 ... You 14 |
+|     [View Full Leaderboard]|
 |                           |
-|    You: Akshay            |
-|    47 players waiting     |
+|  What is the capital      |
+|  of France?               |
 |                           |
-|    [animated dots]        |
-|    Waiting for host...    |
+| [A] Rome                  |
+| [B] Paris          ← sel  |
+| [C] Madrid                |
+| [D] London                |
+|                           |
+|  ✓ Answer submitted       |
 +---------------------------+
 ```
 
-- Player count updates in real time
-- No action required from the player
+- Timer: large, top-right, color-coded
+- Question number: top-left for progress awareness
+- Persistent rank chip and Quick View: always visible per Section 17.5, never
+  requires leaving the question to check standing
 - If the player refreshes, they return here instantly (session token)
 
 ### 19.3 Question Screen
@@ -1395,9 +1423,54 @@ More detailed, with recovery guidance:
 
 ---
 
-## 25. Accessibility and Responsive Design
+## 25. Design System, Accessibility, and Responsive Design
 
-### 25.1 Accessibility (WCAG 2.1 AA Target)
+### 25.1 Design System — "Peaceful and Soulful"
+
+The visual language is calm, warm, and unhurried — appropriate for both a
+lighthearted trivia night and reflective/spiritual quiz content (see
+`sample-game/`). It deliberately avoids the harsh, high-saturation, arcade
+aesthetic common to quiz-show apps.
+
+**Palette (CSS custom properties, defined once in `app/globals.css`):**
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--bg` | warm linen (`#f6f3ec`) | page background |
+| `--surface` | soft white (`#fffdf9`) | cards, panels |
+| `--surface-muted` | pale sage (`#eef2ea`) | secondary panels, quick view |
+| `--text` | deep slate (`#2b3440`) | body text (soft black, not pure) |
+| `--muted` | warm gray (`#6b7280`) | secondary text |
+| `--accent` | sage green (`#4f7a67`) | primary actions, calm/growth |
+| `--accent-dark` | deep sage (`#37594a`) | hover states |
+| `--accent-warm` | muted gold (`#c79a52`) | highlights, "soulful" warmth, correct-answer accents |
+| `--accent-soft` | dusty lavender (`#a7a0c9`) | secondary highlights, rank chip |
+| `--danger` | brick red (`#b3554a`) | errors, incorrect answers (muted, not alarm-red) |
+| `--border` | warm gray (`#e3ddd0`) | dividers, card borders |
+
+**Typography:**
+- Headings use a calm serif (`ui-serif, Georgia, "Times New Roman", serif`)
+  to feel considered and unhurried.
+- Body and UI text use a clean system sans-serif stack for legibility at
+  small sizes on mobile.
+- No more than two font families in the entire application.
+
+**Shape and motion:**
+- Generous rounded corners (`--radius-md: 14px`, `--radius-lg: 20px`) —
+  soft edges, nothing sharp or clinical.
+- Soft, low-contrast shadows (`0 12px 30px rgba(43, 52, 64, 0.08)`) rather
+  than hard drop shadows.
+- Transitions are gentle (200-250ms ease) and respect
+  `prefers-reduced-motion` (Section 25.4).
+- Generous whitespace; avoid dense, cluttered panels even on the admin
+  host console.
+
+**Reusable primitives** (implemented as CSS classes, not one-off inline
+styles): `.card`, `.btn` (+ `.btn-primary`, `.btn-secondary`, `.btn-danger`),
+`.badge` (status pills), `.pill` (rank/score chip), `.grid-responsive-2`,
+`.grid-responsive-3`, `.quick-leaderboard`, `.modal-overlay` / `.modal-panel`.
+
+### 25.2 Accessibility (WCAG 2.1 AA Target)
 
 - All interactive elements reachable via keyboard (Tab, Enter, Space)
 - Visible focus indicators (2px solid outline, high contrast)
@@ -1408,15 +1481,20 @@ More detailed, with recovery guidance:
 - Touch targets: minimum 48x48px
 - No information conveyed solely through animation
 
-### 25.2 Responsive Breakpoints
+### 25.3 Responsive Breakpoints
 
 | Breakpoint | Target | Layout |
 | --- | --- | --- |
-| < 640px | Mobile (player primary) | Single column, full-width buttons |
+| < 640px | Mobile (player primary) | Single column, full-width buttons, persistent rank chip + Quick View (Section 17.5) replace the desktop sidebar |
 | 640-1024px | Tablet | Two-column where beneficial |
-| > 1024px | Desktop (admin primary) | Multi-panel layouts |
+| > 1024px | Desktop (admin primary) | Multi-panel layouts, full leaderboard sidebar always visible |
 
-### 25.3 Motion
+All pages in the application (marketing/home, login, admin dashboard, admin
+game console, Excel import, player join, player question screen) must be
+usable without horizontal scrolling at widths down to 360px, and must reflow
+multi-column layouts (grids) to a single column below the 640px breakpoint.
+
+### 25.4 Motion
 
 - Respect `prefers-reduced-motion`: disable countdown pulse, leaderboard animations
 - All animations are decorative, not informational
