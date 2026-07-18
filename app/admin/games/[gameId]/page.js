@@ -9,6 +9,7 @@ export default function GameDetailPage() {
   const router = useRouter();
   const [game, setGame] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [playerCount, setPlayerCount] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,6 +38,7 @@ export default function GameDetailPage() {
       } else {
         setGame(gameData.game);
         setQuestions(gameData.questions || []);
+        setPlayerCount(gameData.player_count || 0);
       }
 
       if (leaderboardRes.ok) {
@@ -49,42 +51,23 @@ export default function GameDetailPage() {
     }
   }
 
-  async function startGame() {
+  async function runAction(action) {
     setActionInProgress(true);
+    setError("");
     try {
       const res = await fetch(`/api/games/${gameId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "active", current_question_number: 1 })
+        body: JSON.stringify({ action })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setGame(data.updated);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || `Failed to run action: ${action}`);
       } else {
-        setError("Failed to start game");
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setActionInProgress(false);
-    }
-  }
-
-  async function advanceQuestion() {
-    if (!game) return;
-    setActionInProgress(true);
-    try {
-      const nextQuestionNum = (game.current_question_number || 0) + 1;
-      const res = await fetch(`/api/games/${gameId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_question_number: nextQuestionNum })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGame(data.updated);
-      } else {
-        setError("Failed to advance question");
+        await fetchGameDetails();
+        if (action === "end") {
+          setTimeout(() => router.push("/admin"), 1500);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -95,37 +78,18 @@ export default function GameDetailPage() {
 
   async function publishGame() {
     setActionInProgress(true);
+    setError("");
     try {
       const res = await fetch(`/api/games/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameId })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setGame(data.game);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to publish game");
       } else {
-        setError("Failed to publish game");
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setActionInProgress(false);
-    }
-  }
-
-  async function endGame() {
-    setActionInProgress(true);
-    try {
-      const res = await fetch(`/api/games/${gameId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGame(data.updated);
-        setTimeout(() => router.push("/admin"), 2000);
+        setGame(data.game);
       }
     } catch (err) {
       setError(err.message);
@@ -136,7 +100,7 @@ export default function GameDetailPage() {
 
   if (loading) return <main style={{ padding: "2rem" }}><p>Loading game...</p></main>;
 
-  if (error) {
+  if (error && !game) {
     return (
       <main style={{ padding: "2rem" }}>
         <div className="card">
@@ -151,9 +115,9 @@ export default function GameDetailPage() {
 
   if (!game) return <main><p>Game not found</p></main>;
 
-  const currentQuestion = game.current_question_number
-    ? questions.find((q) => q.question_number === game.current_question_number)
-    : null;
+  const totalQuestions = questions.length;
+  const currentIndex = game.current_question_index || 0;
+  const currentQuestion = currentIndex ? questions.find((q) => q.question_order === currentIndex) : null;
 
   return (
     <main style={{ padding: "2rem" }}>
@@ -162,162 +126,108 @@ export default function GameDetailPage() {
           ← Back to Games
         </Link>
 
+        {error && (
+          <div className="card" style={{ background: "#fee2e2", marginBottom: "1rem" }}>
+            <p style={{ color: "#dc2626", margin: 0 }}>{error}</p>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "2rem" }}>
           {/* Game Controls */}
           <div className="card">
-            <h2 style={{ margin: "0 0 1rem" }}>{game.title}</h2>
+            <h2 style={{ margin: "0 0 1rem" }}>{game.name}</h2>
 
             <div style={{ marginBottom: "1.5rem" }}>
               <p style={{ margin: "0.5rem 0" }}>
-                <strong>Status:</strong> <span style={{ color: "#0f7b6c", textTransform: "uppercase", fontSize: "0.9rem", fontWeight: "600" }}>
+                <strong>Status:</strong>{" "}
+                <span style={{ color: "#0f7b6c", textTransform: "uppercase", fontSize: "0.9rem", fontWeight: "600" }}>
                   {game.status}
                 </span>
               </p>
               {game.room_code && (
-                <p style={{ margin: "0.5rem 0", padding: "0.75rem", background: "#fef3c7", borderRadius: "6px", fontFamily: "monospace", fontSize: "1.1rem", fontWeight: "600", letterSpacing: "2px", textAlign: "center" }}>
+                <p
+                  style={{
+                    margin: "0.5rem 0",
+                    padding: "0.75rem",
+                    background: "#fef3c7",
+                    borderRadius: "6px",
+                    fontFamily: "monospace",
+                    fontSize: "1.1rem",
+                    fontWeight: "600",
+                    letterSpacing: "2px",
+                    textAlign: "center"
+                  }}
+                >
                   Code: {game.room_code}
                 </p>
               )}
               <p style={{ margin: "0.5rem 0" }}>
-                <strong>Questions:</strong> {questions.length}
+                <strong>Questions:</strong> {totalQuestions}
               </p>
               <p style={{ margin: "0.5rem 0" }}>
-                <strong>Players:</strong> {leaderboard.length}
+                <strong>Players:</strong> {playerCount}
               </p>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {game.status === "draft" && (
-                <>
-                  <button
-                    onClick={publishGame}
-                    disabled={actionInProgress}
-                    style={{
-                      padding: "0.75rem",
-                      background: "#2563eb",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: actionInProgress ? "not-allowed" : "pointer",
-                      fontWeight: "600",
-                      opacity: actionInProgress ? 0.7 : 1
-                    }}
-                  >
-                    📢 Publish & Get Code
-                  </button>
-                  <button
-                    onClick={startGame}
-                    disabled={actionInProgress}
-                    style={{
-                      padding: "0.75rem",
-                      background: "#10b981",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: actionInProgress ? "not-allowed" : "pointer",
-                      fontWeight: "600",
-                      opacity: actionInProgress ? 0.7 : 1
-                    }}
-                  >
-                    🎮 Start Game Now
-                  </button>
-                </>
+                <button onClick={publishGame} disabled={actionInProgress} style={buttonStyle("#2563eb", actionInProgress)}>
+                  📢 Publish & Get Code
+                </button>
               )}
 
-              {game.status === "published" && (
+              {(game.status === "published" || game.status === "lobby") && (
                 <button
-                  onClick={startGame}
-                  disabled={actionInProgress}
-                  style={{
-                    padding: "0.75rem",
-                    background: "#10b981",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    cursor: actionInProgress ? "not-allowed" : "pointer",
-                    fontWeight: "600",
-                    opacity: actionInProgress ? 0.7 : 1
-                  }}
+                  onClick={() => runAction("start")}
+                  disabled={actionInProgress || (game.status === "lobby" && playerCount === 0)}
+                  style={buttonStyle("#10b981", actionInProgress || (game.status === "lobby" && playerCount === 0))}
                 >
-                  🎮 Start Game
+                  🎮 Start Game {game.status === "published" ? "(waiting for players)" : ""}
                 </button>
               )}
 
               {game.status === "active" && (
                 <>
                   <button
-                    onClick={advanceQuestion}
-                    disabled={actionInProgress || game.current_question_number >= questions.length}
-                    style={{
-                      padding: "0.75rem",
-                      background: "#2563eb",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: actionInProgress ? "not-allowed" : "pointer",
-                      fontWeight: "600",
-                      opacity: (actionInProgress || game.current_question_number >= questions.length) ? 0.7 : 1
-                    }}
-                  >
-                    → Next Question ({(game.current_question_number || 0) + 1}/{questions.length})
-                  </button>
-                  <button
-                    onClick={endGame}
+                    onClick={() => runAction("next")}
                     disabled={actionInProgress}
-                    style={{
-                      padding: "0.75rem",
-                      background: "#8b5cf6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: actionInProgress ? "not-allowed" : "pointer",
-                      fontWeight: "600",
-                      opacity: actionInProgress ? 0.7 : 1
-                    }}
+                    style={buttonStyle("#2563eb", actionInProgress)}
                   >
+                    → Next Question ({Math.min(currentIndex + 1, totalQuestions)}/{totalQuestions})
+                  </button>
+                  <button onClick={() => runAction("end")} disabled={actionInProgress} style={buttonStyle("#8b5cf6", actionInProgress)}>
                     ⏹ End Game
                   </button>
                 </>
               )}
 
               {game.status === "completed" && (
-                <p style={{ color: "#10b981", textAlign: "center", fontWeight: "600" }}>
-                  ✓ Game Completed
-                </p>
+                <p style={{ color: "#10b981", textAlign: "center", fontWeight: "600" }}>✓ Game Completed</p>
               )}
             </div>
           </div>
 
           {/* Current Question */}
           <div className="card" style={{ background: currentQuestion ? "#f0fdf4" : "#f3f4f6" }}>
-            <h3 style={{ margin: "0 0 1rem" }}>
-              {currentQuestion ? `Q${game.current_question_number}` : "No Q"}
-            </h3>
+            <h3 style={{ margin: "0 0 1rem" }}>{currentQuestion ? `Q${currentIndex}` : "No Q"}</h3>
             {currentQuestion ? (
               <>
                 <p style={{ fontSize: "0.95rem", marginBottom: "1rem", fontWeight: "500", lineHeight: "1.3" }}>
-                  {currentQuestion.text}
+                  {currentQuestion.question_text}
                 </p>
                 <div style={{ display: "grid", gap: "0.5rem", fontSize: "0.85rem" }}>
-                  {[
-                    { label: "A", text: currentQuestion.option_a },
-                    { label: "B", text: currentQuestion.option_b },
-                    { label: "C", text: currentQuestion.option_c },
-                    { label: "D", text: currentQuestion.option_d }
-                  ].map((opt) => (
+                  {currentQuestion.question_choices.map((choice) => (
                     <div
-                      key={opt.label}
+                      key={choice.id}
                       style={{
                         padding: "0.5rem",
-                        border: `1px solid ${opt.label === currentQuestion.correct_option ? "#10b981" : "#e5e7eb"}`,
+                        border: `1px solid ${choice.is_correct ? "#10b981" : "#e5e7eb"}`,
                         borderRadius: "6px",
-                        background: opt.label === currentQuestion.correct_option ? "#ecfdf5" : "white"
+                        background: choice.is_correct ? "#ecfdf5" : "white"
                       }}
                     >
-                      <strong>{opt.label})</strong> {opt.text}
-                      {opt.label === currentQuestion.correct_option && (
-                        <span style={{ color: "#10b981", marginLeft: "0.3rem", fontWeight: "600" }}>✓</span>
-                      )}
+                      <strong>{choice.choice_key})</strong> {choice.choice_text}
+                      {choice.is_correct && <span style={{ color: "#10b981", marginLeft: "0.3rem", fontWeight: "600" }}>✓</span>}
                     </div>
                   ))}
                 </div>
@@ -336,7 +246,7 @@ export default function GameDetailPage() {
               ) : (
                 leaderboard.slice(0, 15).map((p) => (
                   <div
-                    key={p.id}
+                    key={`${p.rank}-${p.display_name}`}
                     style={{
                       padding: "0.5rem",
                       background: "#f9fafb",
@@ -346,15 +256,54 @@ export default function GameDetailPage() {
                       fontSize: "0.85rem"
                     }}
                   >
-                    <div>#{p.rank} {p.display_name}</div>
-                    <div style={{ fontWeight: "700", color: "#0f7b6c" }}>{p.score}</div>
+                    <div>
+                      #{p.rank} {p.display_name}
+                    </div>
+                    <div style={{ fontWeight: "700", color: "#0f7b6c" }}>{p.total_score}</div>
                   </div>
                 ))
               )}
             </div>
           </div>
         </div>
+
+        {/* All Questions */}
+        <div className="card" style={{ marginTop: "2rem" }}>
+          <h3>All Questions</h3>
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            {questions.map((q) => (
+              <div
+                key={q.id}
+                style={{
+                  padding: "0.75rem",
+                  border: `2px solid ${q.question_order === currentIndex ? "#2563eb" : "#e5e7eb"}`,
+                  borderRadius: "8px",
+                  background: q.question_order === currentIndex ? "#eff6ff" : "white"
+                }}
+              >
+                <strong>Q{q.question_order}:</strong> {q.question_text}
+                <div style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                  {q.category && <span>{q.category} • </span>}
+                  Answer: <strong>{q.question_choices.find((c) => c.is_correct)?.choice_key}</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </main>
   );
+}
+
+function buttonStyle(background, disabled) {
+  return {
+    padding: "0.75rem",
+    background,
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontWeight: "600",
+    opacity: disabled ? 0.7 : 1
+  };
 }

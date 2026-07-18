@@ -33,8 +33,10 @@ export default function GamesListContent({ user }) {
   const statusColors = {
     draft: "#6b7280",
     published: "#2563eb",
+    lobby: "#f59e0b",
     active: "#10b981",
-    completed: "#8b5cf6"
+    completed: "#8b5cf6",
+    cancelled: "#dc2626"
   };
 
   return (
@@ -44,9 +46,6 @@ export default function GamesListContent({ user }) {
           <h1>My Games</h1>
           <div style={{ display: "flex", gap: "1rem" }}>
             <SeedDataButton onGameCreated={handleGameCreated} />
-            <Link href="/admin/create-game" className="link-btn">
-              + New Game
-            </Link>
           </div>
         </div>
 
@@ -65,30 +64,29 @@ export default function GamesListContent({ user }) {
               <div key={game.id} className="card" style={{ cursor: "pointer" }} onClick={() => router.push(`/admin/games/${game.id}`)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <div>
-                    <h3 style={{ margin: "0 0 0.5rem" }}>{game.title}</h3>
+                    <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
                     <p style={{ margin: "0.25rem 0", color: "#6b7280", fontSize: "0.9rem" }}>
-                      {game.question_count} questions • {game.category || "Uncategorized"}
+                      {game.question_count} questions • {game.player_count} players
                     </p>
-                    <p style={{ margin: "0", color: "#8b5cf6", fontSize: "0.85rem" }}>
-                      {game.description}
-                    </p>
+                    {game.room_code && (
+                      <p style={{ margin: "0", color: "#8b5cf6", fontSize: "0.85rem", fontFamily: "monospace" }}>
+                        Code: {game.room_code}
+                      </p>
+                    )}
                   </div>
-                  <div style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "8px",
-                    background: statusColors[game.status] || "#999",
-                    color: "white",
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    textTransform: "capitalize"
-                  }}>
+                  <div
+                    style={{
+                      padding: "0.5rem 1rem",
+                      borderRadius: "8px",
+                      background: statusColors[game.status] || "#999",
+                      color: "white",
+                      fontSize: "0.85rem",
+                      fontWeight: "600",
+                      textTransform: "capitalize"
+                    }}
+                  >
                     {game.status}
                   </div>
-                </div>
-                <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", fontSize: "0.85rem", color: "#6b7280" }}>
-                  <span>Max players: {game.max_players}</span>
-                  <span>•</span>
-                  <span>Timer: {game.question_duration_seconds}s</span>
                 </div>
               </div>
             ))}

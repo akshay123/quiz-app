@@ -1,57 +1,85 @@
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { game_id, session_token } = body;
+    const { session_token } = await request.json();
 
-    if (!game_id || !session_token) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+    if (!session_token) {
+      return NextResponse.json({ error: "Missing session token" }, { status: 400 });
     }
 
     const supabase = await createClient();
+    const { data, error } = await supabase.rpc("reconnect_player", { p_session_token: session_token });
 
-    // Verify player session
-    const { data: player, error: playerError } = await supabase
-      .from("players")
-      .select("*")
-      .eq("game_id", game_id)
-      .eq("session_token", session_token)
-      .is_active(true)
-      .single();
-
-    if (playerError || !player) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Fetch game
-    const { data: game, error: gameError } = await supabase
-      .from("games")
-      .select("*")
-      .eq("id", game_id)
-      .single();
+    if (data?.error) {
+      // reconnect_player only recognizes games in 'lobby' or 'active' state.
+      // If the game has since completed, fall back to a service-role lookup
+      // so the player can still see their final result instead of being kicked out.
+      const tokenHash = createHash("sha256").update(session_token).digest("hex");
+      const admin = createAdminClient();
 
-    if (gameError || !game) {
-      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+      const { data: player } = await admin
+        .from("players")
+        .select("id, display_name, total_score, game_id, games(id, name, status)")
+        .eq("session_token_hash", tokenHash)
+        .neq("status", "removed")
+        .single();
+
+      if (player && player.games?.status === "completed") {
+        return NextResponse.json({
+          player: { id: player.id, display_name: player.display_name, total_score: player.total_score },
+          game: { id: player.games.id, name: player.games.name, status: "completed" },
+          question: null,
+          choices: []
+        });
+      }
+
+      return NextResponse.json({ error: "Session expired" }, { status: 401 });
     }
 
-    // Fetch current question if game is active
-    let currentQuestion = null;
-    if (game.status === "active" && game.current_question_number) {
-      const { data: question } = await supabase
+    let question = null;
+    let choices = [];
+
+    if (data.current_question_id) {
+      const { data: q } = await supabase
         .from("questions")
         .select("*")
-        .eq("game_id", game_id)
-        .eq("question_number", game.current_question_number)
+        .eq("id", data.current_question_id)
         .single();
-      currentQuestion = question;
+      question = q;
+
+      const { data: c } = await supabase
+        .from("question_choices")
+        .select("id, choice_key, choice_text, display_order")
+        .eq("question_id", data.current_question_id)
+        .order("display_order");
+      choices = c || [];
     }
 
     return NextResponse.json({
-      player,
-      game,
-      currentQuestion
+      player: {
+        id: data.player_id,
+        display_name: data.display_name,
+        total_score: data.total_score
+      },
+      game: {
+        id: data.game_id,
+        name: data.game_name,
+        status: data.game_status,
+        active_sub_state: data.active_sub_state,
+        current_question_index: data.current_question_index,
+        question_started_at: data.question_started_at,
+        question_ends_at: data.question_ends_at
+      },
+      question,
+      choices
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

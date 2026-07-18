@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function JoinPage() {
-  const [gameCode, setGameCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function JoinPage() {
       const res = await fetch("/api/players/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game_code: gameCode, player_name: playerName })
+        body: JSON.stringify({ room_code: roomCode, display_name: displayName })
       });
 
       const data = await res.json();
@@ -28,13 +28,14 @@ export default function JoinPage() {
       if (!res.ok) {
         setError(data.error || "Failed to join game");
       } else {
-        // Store player session in localStorage
-        localStorage.setItem("player_session", JSON.stringify({
-          game_id: data.game_id,
-          player_id: data.player_id,
-          session_token: data.session_token,
-          player_name: playerName
-        }));
+        localStorage.setItem(
+          "player_session",
+          JSON.stringify({
+            game_id: data.game_id,
+            session_token: data.session_token,
+            display_name: displayName
+          })
+        );
         router.push(`/play/${data.game_id}`);
       }
     } catch (err) {
@@ -55,14 +56,12 @@ export default function JoinPage() {
 
           <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>
-                Game Code
-              </label>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Game Code</label>
               <input
                 type="text"
                 placeholder="e.g. ABC123"
-                value={gameCode}
-                onChange={(e) => setGameCode(e.target.value.toUpperCase())}
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 disabled={loading}
                 style={{
                   width: "100%",
@@ -79,16 +78,14 @@ export default function JoinPage() {
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>
-                Your Name
-              </label>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Your Name</label>
               <input
                 type="text"
                 placeholder="Enter your display name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 disabled={loading}
-                maxLength="50"
+                maxLength="20"
                 style={{
                   width: "100%",
                   padding: "0.75rem",
@@ -108,7 +105,7 @@ export default function JoinPage() {
 
             <button
               type="submit"
-              disabled={loading || !gameCode.trim() || !playerName.trim()}
+              disabled={loading || !roomCode.trim() || !displayName.trim()}
               style={{
                 padding: "0.75rem",
                 background: "#0f7b6c",
@@ -117,9 +114,8 @@ export default function JoinPage() {
                 borderRadius: "8px",
                 fontSize: "1rem",
                 fontWeight: "600",
-                cursor:
-                  loading || !gameCode.trim() || !playerName.trim() ? "not-allowed" : "pointer",
-                opacity: loading || !gameCode.trim() || !playerName.trim() ? 0.7 : 1
+                cursor: loading || !roomCode.trim() || !displayName.trim() ? "not-allowed" : "pointer",
+                opacity: loading || !roomCode.trim() || !displayName.trim() ? 0.7 : 1
               }}
             >
               {loading ? "Joining..." : "Join Game"}
