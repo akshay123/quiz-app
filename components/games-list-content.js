@@ -30,15 +30,6 @@ export default function GamesListContent({ user }) {
     fetchGames();
   }
 
-  const statusClass = {
-    draft: "badge-draft",
-    published: "badge-published",
-    lobby: "badge-lobby",
-    active: "badge-active",
-    completed: "badge-completed",
-    cancelled: "badge-cancelled"
-  };
-
   return (
     <main className="page-shell" style={{ display: "block", minHeight: "auto" }}>
       <div className="container-wide">
@@ -70,21 +61,11 @@ export default function GamesListContent({ user }) {
                 style={{ width: "100%", cursor: "pointer" }}
                 onClick={() => router.push(`/admin/games/${game.id}`)}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", flexWrap: "wrap", gap: "0.75rem" }}>
-                  <div>
-                    <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
-                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-                      {game.question_count} questions • {game.player_count} players
-                    </p>
-                    {game.room_code && (
-                      <p style={{ margin: "0", color: "var(--accent-soft)", fontSize: "0.85rem", fontFamily: "monospace" }}>
-                        Code: {game.room_code}
-                      </p>
-                    )}
-                  </div>
-                  <div className={`badge ${statusClass[game.status] || ""}`}>
-                    {game.status}
-                  </div>
+                <div>
+                  <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
+                  <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                    {game.question_count} question{game.question_count === 1 ? "" : "s"} • {game.session_count} session{game.session_count === 1 ? "" : "s"} run
+                  </p>
                 </div>
               </div>
             ))}

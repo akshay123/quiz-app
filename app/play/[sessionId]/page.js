@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 export default function PlayPage() {
   const params = useParams();
   const router = useRouter();
-  const gameId = params.gameId;
+  const sessionId = params.sessionId;
 
   const [player, setPlayer] = useState(null);
   const [game, setGame] = useState(null);
@@ -33,21 +33,21 @@ export default function PlayPage() {
 
   // Poll game/question state every 1 second
   useEffect(() => {
-    if (!gameId) return;
+    if (!sessionId) return;
     const interval = setInterval(() => {
       const sessionStr = localStorage.getItem("player_session");
       if (!sessionStr) return;
       pollStatus(JSON.parse(sessionStr), false);
     }, 1000);
     return () => clearInterval(interval);
-  }, [gameId, question?.id]);
+  }, [sessionId, question?.id]);
 
   // Poll leaderboard every 2 seconds
   useEffect(() => {
-    if (!gameId) return;
+    if (!sessionId) return;
     const fetchLeaderboard = async () => {
       try {
-        const res = await fetch(`/api/games/${gameId}/leaderboard`);
+        const res = await fetch(`/api/sessions/${sessionId}/leaderboard`);
         const data = await res.json();
         if (res.ok) setLeaderboard(data.leaderboard);
       } catch (err) {
@@ -57,7 +57,7 @@ export default function PlayPage() {
     fetchLeaderboard();
     const interval = setInterval(fetchLeaderboard, 2000);
     return () => clearInterval(interval);
-  }, [gameId]);
+  }, [sessionId]);
 
   // Timer countdown, derived from the server's question_ends_at timestamp
   useEffect(() => {
@@ -323,6 +323,8 @@ export default function PlayPage() {
               <p style={{ textAlign: "center", margin: "1rem 0 0" }}>
                 You scored <strong>{player.total_score} points</strong>
               </p>
+              {rankChip && <div style={{ textAlign: "center", marginTop: "1rem" }}>{rankChip}</div>}
+              <div className="show-mobile-only" style={{ marginTop: "1rem" }}>{quickView}</div>
             </div>
           ) : null}
         </div>
@@ -363,4 +365,3 @@ export default function PlayPage() {
     </main>
   );
 }
-

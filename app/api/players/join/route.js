@@ -30,7 +30,7 @@ export async function POST(request) {
     return NextResponse.json({
       session_token: sessionToken,
       player_id: data.player_id,
-      game_id: data.game_id,
+      session_id: data.session_id,
       game_name: data.game_name,
       game_status: data.game_status
     });

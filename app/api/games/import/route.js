@@ -81,7 +81,6 @@ export async function POST(request) {
             question_text: q.question_text,
             category: q.category,
             explanation: q.explanation,
-            duration_seconds: q.duration_seconds,
             image_url: q.image_url
           })
           .select()
@@ -104,7 +103,6 @@ export async function POST(request) {
         const settingsUpdate = {};
         for (const key of [
           "max_players",
-          "default_question_duration_seconds",
           "preparation_countdown_seconds",
           "leaderboard_duration_seconds",
           "allow_late_join",

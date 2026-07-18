@@ -31,12 +31,12 @@ export default function JoinPage() {
         localStorage.setItem(
           "player_session",
           JSON.stringify({
-            game_id: data.game_id,
+            session_id: data.session_id,
             session_token: data.session_token,
             display_name: displayName
           })
         );
-        router.push(`/play/${data.game_id}`);
+        router.push(`/play/${data.session_id}`);
       }
     } catch (err) {
       setError(err.message);

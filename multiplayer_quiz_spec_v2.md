@@ -67,7 +67,7 @@ The default configuration requires zero setup beyond providing questions:
 | Setting | Default | Why this default |
 | --- | ---: | --- |
 | Maximum players | 100 | Covers most use cases |
-| Question duration | 30 seconds | Enough time without dragging |
+| Question duration | 30 seconds (fixed, not configurable) | Matches the scoring bands exactly; see Section 8 and 9 |
 | Preparation countdown | 3 seconds | Lets players focus |
 | Leaderboard display duration | 5 seconds | Enough to scan top ranks |
 | Correct answer in first 10 seconds | 3 points | Rewards fast knowledge |
@@ -92,9 +92,10 @@ An administrator can:
 * Create a game (from Excel upload or from scratch)
 * Upload an Excel workbook with inline validation feedback
 * Edit imported questions without re-uploading
-* Duplicate a previous game (copies questions and settings, not player data)
+* Run the same game many times (Section 18.0): start a new session to get a
+  fresh room code and an isolated set of players/leaderboard, without
+  touching past sessions' recorded results
 * Configure game rules (with live preview of scoring behavior)
-* Publish a game (generates room code)
 * Host a game (start, advance, pause, end)
 * View connected players and remove disruptive players
 * View the live leaderboard
@@ -151,8 +152,11 @@ Out of scope for MVP. Noted for future consideration.
    - Basic: timer, max players
    - Scoring: bands with visual timeline
    - Behavior: late join, randomization, answer reveal
-8. Administrator clicks **Save Draft** or **Publish**.
-9. On publish, the system generates a room code and shows it prominently with a copy button and QR code.
+8. Administrator clicks **Save**. The game (template) is created with no
+   room code yet — questions/settings can keep being edited at any time.
+9. Administrator clicks **▶ Start New Session** (Section 18.0/18.3). The
+   system generates a room code for that session and shows it prominently
+   with a copy button and QR code.
 
 **Key usability decisions:**
 - No separate "validate" step. Validation is continuous.
@@ -259,12 +263,21 @@ After the question ends:
 
 ## 7. Game Lifecycle
 
+This lifecycle belongs to a **session** (Section 18.0/20.3), not the game
+template. The template itself has no status — it is always editable and can
+have any number of sessions, in any of these states, at once.
+
 States:
 
 ```
-draft → published → lobby → active → completed
-                                   → cancelled
+published → lobby → active → completed
+                           → cancelled
 ```
+
+A session is always born `published` (Start New Session assigns the room
+code immediately) — there is no `draft` session state to transition out of,
+since content is edited on the template, not per-session. `draft` remains a
+valid enum value for schema compatibility but the app never produces it.
 
 Active sub-states (managed internally):
 
@@ -281,8 +294,7 @@ Valid transitions:
 
 | From | To | Trigger |
 | --- | --- | --- |
-| draft | published | Admin clicks Publish |
-| draft | cancelled | Admin deletes draft |
+| (none) | published | Admin clicks Start New Session |
 | published | lobby | First player joins OR host opens lobby |
 | published | cancelled | Admin cancels |
 | lobby | active (countdown) | Host clicks Start |
@@ -308,8 +320,9 @@ Settings are organized into three tiers for progressive disclosure:
 | Setting | Type | Default | Validation |
 | --- | --- | ---: | --- |
 | Game name | Text | Required | 1-150 characters |
-| Question duration | Integer | 30 | 5-300 seconds |
 | Maximum players | Integer | 100 | 2-100 |
+
+Question duration is **fixed at 30 seconds** for every question in every game and is not configurable (see below).
 
 ### Tier 2: Common Options (collapsed by default)
 
@@ -337,7 +350,7 @@ Settings are organized into three tiers for progressive disclosure:
 
 **Interaction rule:** "Show points immediately" is disabled if "Show correct answer after question" is off (since points imply correctness).
 
-Question-specific overrides: Individual questions can override the game-level timer. This is set per-question in the editor or via the Excel "Time Limit" column.
+**No per-question overrides:** every question always runs the fixed 30-second timer. There is no game-level or per-question way to change this — an Excel "Time Limit" column, if present, is ignored (with a warning surfaced to the admin on import) rather than silently applied. This guarantees the timer and the scoring bands (Section 9) always line up.
 
 ---
 
@@ -370,7 +383,7 @@ The final band's end boundary is always inclusive (answers at exactly the deadli
 
 The admin configures scoring bands using a visual timeline:
 
-- A horizontal bar represents the question duration (e.g., 30 seconds).
+- A horizontal bar represents the fixed 30-second question duration.
 - Colored segments represent bands.
 - Drag handles adjust boundaries.
 - Point values are editable inline.
@@ -381,14 +394,12 @@ The admin configures scoring bands using a visual timeline:
 - No gaps between bands
 - No negative points
 - End time must be after start time
-- Bands must collectively cover the entire question duration
+- Bands must collectively cover the full 30 seconds
 - Minimum 1 band required
-
-The system auto-fills: if the admin changes the question duration, the last band auto-extends to match.
 
 ### 9.4 Per-Question Scoring
 
-Optional. If a question has a custom timer, the admin can assign custom scoring bands. Otherwise, game-level bands apply.
+Not supported. Since every question runs the same fixed 30-second timer (Section 8), there is no per-question custom timer to hang custom bands off of — game-level bands always apply to every question.
 
 ### 9.5 Tie-Breaking
 
@@ -435,7 +446,6 @@ If "Game" or "Scoring" worksheets are missing, system defaults apply. Only the "
 | Choice F | No | |
 | Correct Choice | Yes | Letter (A-F) matching a populated choice |
 | Explanation | No | Shown to players after reveal |
-| Time Limit | No | Overrides game default for this question |
 | Category | No | For organization and reporting |
 | Image URL | No | Must be HTTPS, validated on import |
 
@@ -445,7 +455,6 @@ If "Game" or "Scoring" worksheets are missing, system defaults apply. Only the "
 | --- | --- | --- |
 | Game Name | Yes | (none, must be provided somewhere) |
 | Maximum Players | No | 100 |
-| Question Duration | No | 30 |
 | Preparation Countdown | No | 3 |
 | Leaderboard Duration | No | 5 |
 | Allow Late Join | No | FALSE |
@@ -453,6 +462,8 @@ If "Game" or "Scoring" worksheets are missing, system defaults apply. Only the "
 | Randomize Answers | No | FALSE |
 | Show Correct Answer | No | TRUE |
 | Show Leaderboard | No | TRUE |
+
+Question duration is not an importable field: every question always runs the fixed 30-second timer (Section 8). A "Question Duration" or "Time Limit" column, if present in the workbook, is ignored and surfaces a warning rather than being silently applied.
 
 ### 10.5 Scoring Worksheet
 
@@ -534,9 +545,14 @@ surrounding whitespace.
 | Choice (1-6) | `Choice A`..`Choice F`, or `Answer 1`..`Answer 6` |
 | Correct Choice | `Correct Choice`, `Correct Answer`, `Correct Answer(s)` |
 | Explanation | `Explanation` |
-| Time Limit | `Time Limit`, `Time Limit (sec)`, `Duration` |
 | Category | `Category` |
 | Image URL | `Image URL`, `Image` |
+
+A `Time Limit`, `Time Limit (sec)`, or `Duration` column is recognized only to
+warn the admin that it will be ignored (Section 8) — it is not imported as a
+per-question value, since every question always runs the fixed 30-second
+timer. This matters in practice: Kahoot's bulk export includes a
+"Time limit (sec)" column, commonly set to 20s.
 
 **Correct Choice value formats accepted:**
 - A letter matching a populated choice column (`A`-`F`), or
@@ -578,11 +594,11 @@ still override the corresponding defaults.
 - Character set: `ABCDEFGHJKMNPQRSTUVWXYZ23456789`
 - Example: `HK7M3P`
 - Case-insensitive input (system normalizes to uppercase)
-- Unique across all active games
+- Unique across all active sessions (Section 18.0)
 
 ### 11.2 Sharing
 
-When a game is published, the admin sees:
+When a session is started, the admin sees:
 - The room code in large text with a copy button
 - A QR code that encodes the direct-join URL
 - A shareable link: `https://{domain}/join/{code}`
@@ -590,7 +606,7 @@ When a game is published, the admin sees:
 
 ### 11.3 Expiration
 
-Room codes are released 24 hours after a game completes or is cancelled. They may be reused for future games after release.
+Room codes are released 24 hours after a session completes or is cancelled. They may be reused for future sessions after release.
 
 ---
 
@@ -692,7 +708,7 @@ If a player's connection drops:
 ### 14.1 Session Creation
 
 On join, the system creates:
-- Player record (linked to game)
+- Player record (linked to the session, not the game template)
 - Session token (cryptographically random, 256-bit)
 - Session token stored as an HttpOnly cookie and also in localStorage (fallback)
 - Join timestamp
@@ -734,7 +750,7 @@ The join operation must be atomic:
 
 ```sql
 BEGIN;
-SELECT count(*) FROM players WHERE game_id = $1 AND status = 'active' FOR UPDATE;
+SELECT count(*) FROM players WHERE session_id = $1 AND status = 'active' FOR UPDATE;
 -- Compare with max_players
 -- INSERT player if under limit
 -- REJECT if at limit
@@ -862,6 +878,25 @@ per the responsive layout rules in Section 25.
 
 ## 18. Administrator Screens
 
+### 18.0 Templates and Sessions
+
+A **game** is a permanent template: its questions, answer choices,
+explanations, settings, and scoring bands are created once (via the Excel
+import or the editor) and never recreated. Room code, live status, the
+current question, and the timer are **not** part of the template — they
+belong to a **session**, a single run of that template.
+
+An admin can start as many sessions of the same game as they like, one at a
+time or overlapping. Starting a new session ("▶ Start New Session" on the
+game's page) assigns a fresh room code immediately and opens a lobby for a
+new set of players — there is no separate "draft session" state, since a
+session only exists to be played. Every session has its own isolated
+players, answers, and final leaderboard, and past sessions remain listed
+against the game they belong to so the admin can open any of them and see
+that run's final leaderboard at any time. Editing a game's questions or
+settings affects only sessions started after the edit; it does not alter
+data already recorded for past sessions.
+
 ### 18.1 Login
 
 - Email and password fields
@@ -871,24 +906,32 @@ per the responsive layout rules in Section 25.
 
 ### 18.2 Dashboard
 
-Layout: card grid showing games grouped by status.
-
-| Section | Content | Primary Action |
-| --- | --- | --- |
-| Active Games | Currently running games with player count | Open Host Console |
-| Drafts | Unpublished games | Edit / Publish |
-| Published | Published but not started | Open Lobby / Edit |
-| Completed | Past games with date | View Results / Duplicate |
+Layout: card grid of game **templates** — one card per game, not per
+session. Since a template can have any number of past and current sessions
+in different states, each card shows the question count and total session
+count rather than a single status badge. Opening a card goes to the game's
+page (Section 18.3), which lists every session for that game and is where
+the admin drills into a specific run's Host Console or past leaderboard.
 
 Primary CTA: **+ Create Game** (always visible, top-right)
 
-### 18.3 Game Editor
+### 18.3 Game Page
+
+Shows the template's question count and total session count, a
+**"▶ Start New Session"** button (disabled until at least one question
+exists), and a **Sessions** list: every session ever run for this game
+(status badge, room code, player count, started/completed date), most
+recent first. Clicking a session opens its Host Console (Section 18.5) —
+for a completed session this is where the admin views that run's final
+leaderboard.
+
+### 18.4 Game Editor
 
 Two-panel layout:
 - Left: question list (reorderable via drag)
 - Right: selected question editor
 
-Top bar: game name (editable), Save Draft, Publish
+Top bar: game name (editable), Save
 
 Bottom drawer (collapsible): Settings (Tier 1/2/3)
 
@@ -897,7 +940,6 @@ Bottom drawer (collapsible): Settings (Tier 1/2/3)
 - Answer choices (A-F, with delete buttons for optional ones)
 - Correct answer selector (radio button next to choices)
 - Explanation (optional, collapsible)
-- Time limit override (optional)
 - Category (optional, with autocomplete from existing categories)
 - Image (URL input with preview, or upload)
 
@@ -907,9 +949,12 @@ Bottom drawer (collapsible): Settings (Tier 1/2/3)
 - Move to position
 - Set category
 
-### 18.4 Host Console
+### 18.5 Host Console
 
-Designed for live presentation on a large screen or facilitator's laptop.
+Operates on a single **session** of a game (Section 18.0) — the room code,
+timer, current question, and leaderboard shown here all belong to that one
+run, not the template. Designed for live presentation on a large screen or
+facilitator's laptop.
 
 Layout:
 ```
@@ -944,7 +989,13 @@ Layout:
 - "Remove" button with single confirmation
 - Removed players see "You have been removed by the host"
 
-### 18.5 Results Screen
+**Current implementation status:** the session-detail admin view implements
+the current question, live "Xs remaining" countdown (ticking locally from
+`question_ends_at`, same mechanism as the player timer), controls
+(Start/Next/End), and the live leaderboard. Pause/Resume, the per-player
+connection list, and "Answered: X/Y" are not yet built.
+
+### 18.6 Results Screen
 
 Tabs:
 1. **Leaderboard** - final rankings
@@ -1086,6 +1137,13 @@ All player screens are designed mobile-first with large touch targets (minimum 4
 +---------------------------+
 ```
 
+Responsive behavior mirrors Section 17.5: on mobile/narrow widths this screen
+shows the persistent rank chip plus the Quick View (top 3 + your row) with its
+"View Full" button opening the same full-leaderboard overlay used during
+questions. On desktop/tablet widths the permanent leaderboard side panel
+(already visible throughout the game) continues to serve this role, so no
+extra control is needed there.
+
 ---
 
 ## 20. Data Model
@@ -1104,12 +1162,30 @@ administrators
 
 ### 20.2 Games
 
+The permanent quiz template (Section 18.0). Holds no lifecycle or room-code
+state — that all lives on `game_sessions` (Section 20.3) so the same
+template can be run many times.
+
 ```
 games
 - id: uuid, primary key
 - owner_id: uuid, references administrators.id
 - name: text, not null
-- room_code: text, unique (among active games)
+- created_at: timestamp
+- updated_at: timestamp
+```
+
+### 20.3 Game Sessions
+
+One row per run of a game. Created by "Start New Session" (Section 18.3),
+which assigns the room code immediately — there is no draft state here.
+
+```
+game_sessions
+- id: uuid, primary key
+- game_id: uuid, references games.id
+- room_code: text, unique only while status in (published, lobby, active) —
+  a completed session's code can be reused by a later session once free
 - status: enum (draft, published, lobby, active, completed, cancelled)
 - active_sub_state: enum (countdown, question_active, question_results, leaderboard, paused), nullable
 - paused_from_state: enum, nullable (state to resume to)
@@ -1118,20 +1194,19 @@ games
 - question_ends_at: timestamp, nullable
 - current_question_index: integer, nullable
 - created_at: timestamp
-- updated_at: timestamp
 - published_at: timestamp, nullable
 - started_at: timestamp, nullable
 - completed_at: timestamp, nullable
 ```
 
-### 20.3 Game Settings
+### 20.4 Game Settings
 
 ```
 game_settings
 - id: uuid, primary key
 - game_id: uuid, references games.id, unique
 - max_players: integer, default 100
-- default_question_duration_seconds: integer, default 30
+- default_question_duration_seconds: integer, default 30 (column retained for schema compatibility; ignored by next_question — every question is hardcoded to 30s, see Section 8)
 - preparation_countdown_seconds: integer, default 3
 - leaderboard_duration_seconds: integer, default 5
 - allow_late_join: boolean, default false
@@ -1150,7 +1225,7 @@ game_settings
 
 Note: 1:1 with games. Stored separately to keep the games table lean for queries that only need status/code.
 
-### 20.4 Scoring Bands
+### 20.5 Scoring Bands
 
 ```
 scoring_bands
@@ -1166,7 +1241,7 @@ scoring_bands
 
 When `is_final_band` is true, `end_ms` is inclusive. This eliminates the ambiguity from Section 9.2.
 
-### 20.5 Questions
+### 20.6 Questions
 
 ```
 questions
@@ -1175,14 +1250,14 @@ questions
 - question_order: integer
 - question_text: text, not null
 - explanation: text, nullable
-- duration_seconds: integer, nullable (overrides game default)
+- duration_seconds: integer, nullable (column retained for schema compatibility; ignored by next_question — no per-question override, see Section 8)
 - category: text, nullable
 - image_url: text, nullable
 - created_at: timestamp
 - updated_at: timestamp
 ```
 
-### 20.6 Choices
+### 20.7 Choices
 
 ```
 question_choices
@@ -1196,12 +1271,12 @@ question_choices
 
 `is_correct` is never sent to players before the question closes.
 
-### 20.7 Players
+### 20.8 Players
 
 ```
 players
 - id: uuid, primary key
-- game_id: uuid, references games.id
+- session_id: uuid, references game_sessions.id
 - display_name: text, not null
 - session_token_hash: text, not null
 - status: enum (active, disconnected, removed)
@@ -1216,12 +1291,12 @@ players
 
 Denormalized `total_score`, `correct_answer_count`, and `total_response_time_ms` for fast leaderboard queries without aggregation.
 
-### 20.8 Answers
+### 20.9 Answers
 
 ```
 answers
 - id: uuid, primary key
-- game_id: uuid, references games.id
+- session_id: uuid, references game_sessions.id
 - question_id: uuid, references questions.id
 - player_id: uuid, references players.id
 - selected_choice_id: uuid, references question_choices.id
@@ -1234,12 +1309,12 @@ answers
 UNIQUE (player_id, question_id)
 ```
 
-### 20.9 Game Events (Audit Log)
+### 20.10 Game Events (Audit Log)
 
 ```
 game_events
 - id: uuid, primary key
-- game_id: uuid, references games.id
+- session_id: uuid, references game_sessions.id
 - event_type: text
 - event_data: jsonb
 - actor_type: enum (admin, system, player)
@@ -1316,11 +1391,12 @@ For a game with 100 players:
 ### 22.1 Database Indexes
 
 ```
-games.room_code (unique, where status in ('published','lobby','active'))
-players.game_id, players.status
+game_sessions.room_code (unique, where status in ('published','lobby','active'))
+game_sessions.game_id
+players.session_id, players.status
 players.session_token_hash
 answers.player_id, answers.question_id (unique)
-answers.game_id, answers.question_id
+answers.session_id, answers.question_id
 questions.game_id, questions.question_order
 scoring_bands.game_id
 scoring_bands.game_id, scoring_bands.question_id
@@ -1328,7 +1404,9 @@ scoring_bands.game_id, scoring_bands.question_id
 
 ### 22.2 Query Isolation
 
-All queries must include `game_id` in their WHERE clause. No full-table scans across games.
+All queries must include `session_id` (for per-run tables: players, answers,
+game_events) or `game_id` (for template tables: questions, scoring_bands) in
+their WHERE clause. No full-table scans across games or sessions.
 
 ---
 
@@ -1528,23 +1606,23 @@ Source control:   GitHub
 ### 27.1 Admin Operations (REST, authenticated)
 
 ```
-POST   /api/admin/games                              Create game
+POST   /api/admin/games                              Create game (template)
 GET    /api/admin/games                              List my games
-GET    /api/admin/games/{id}                         Get game details
+GET    /api/admin/games/{id}                         Get game details + sessions list
 PATCH  /api/admin/games/{id}                         Update game
-DELETE /api/admin/games/{id}                         Delete draft
+DELETE /api/admin/games/{id}                         Delete game
 POST   /api/admin/games/{id}/upload                  Upload Excel
-POST   /api/admin/games/{id}/publish                 Publish game
-POST   /api/admin/games/{id}/duplicate               Duplicate game
-POST   /api/admin/games/{id}/start                   Start game
-POST   /api/admin/games/{id}/next-question           Advance to next question
-POST   /api/admin/games/{id}/end-question            End current question early
-POST   /api/admin/games/{id}/pause                   Pause game
-POST   /api/admin/games/{id}/resume                  Resume game
-POST   /api/admin/games/{id}/complete                End game
-DELETE /api/admin/games/{id}/players/{playerId}      Remove player
-GET    /api/admin/games/{id}/results                 Get results
-GET    /api/admin/games/{id}/export                  Download export
+POST   /api/admin/games/{id}/sessions                Start new session (fresh room code)
+GET    /api/admin/sessions/{sessionId}                Get session details
+POST   /api/admin/sessions/{sessionId}/start          Start game (lobby -> active)
+POST   /api/admin/sessions/{sessionId}/next-question  Advance to next question
+POST   /api/admin/sessions/{sessionId}/end-question    End current question early
+POST   /api/admin/sessions/{sessionId}/pause          Pause game
+POST   /api/admin/sessions/{sessionId}/resume         Resume game
+POST   /api/admin/sessions/{sessionId}/complete       End game
+DELETE /api/admin/sessions/{sessionId}/players/{playerId}  Remove player
+GET    /api/admin/sessions/{sessionId}/results        Get results
+GET    /api/admin/sessions/{sessionId}/export         Download export
 ```
 
 ### 27.2 Player Operations (REST, session-token authenticated)
@@ -1552,15 +1630,15 @@ GET    /api/admin/games/{id}/export                  Download export
 ```
 POST   /api/games/join                               Join game (room code + name)
 POST   /api/games/reconnect                          Reconnect with session token
-GET    /api/games/{id}/state                         Get current game state
-POST   /api/games/{id}/answer                        Submit answer
-GET    /api/games/{id}/leaderboard                   Get leaderboard
+GET    /api/sessions/{sessionId}/state                Get current game state
+POST   /api/sessions/{sessionId}/answer                Submit answer
+GET    /api/sessions/{sessionId}/leaderboard           Get leaderboard
 ```
 
 ### 27.3 Real-Time (WebSocket/Supabase Realtime)
 
 ```
-Channel: game:{gameId}
+Channel: session:{sessionId}
 
 Host broadcasts:
   game:state_change    → { state, subState, ... }

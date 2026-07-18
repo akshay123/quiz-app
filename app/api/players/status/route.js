@@ -27,15 +27,15 @@ export async function POST(request) {
 
       const { data: player } = await admin
         .from("players")
-        .select("id, display_name, total_score, game_id, games(id, name, status)")
+        .select("id, display_name, total_score, session_id, game_sessions(id, status, games(id, name))")
         .eq("session_token_hash", tokenHash)
         .neq("status", "removed")
         .single();
 
-      if (player && player.games?.status === "completed") {
+      if (player && player.game_sessions?.status === "completed") {
         return NextResponse.json({
           player: { id: player.id, display_name: player.display_name, total_score: player.total_score },
-          game: { id: player.games.id, name: player.games.name, status: "completed" },
+          game: { id: player.game_sessions.id, name: player.game_sessions.games.name, status: "completed" },
           question: null,
           choices: []
         });
@@ -70,7 +70,7 @@ export async function POST(request) {
         total_score: data.total_score
       },
       game: {
-        id: data.game_id,
+        id: data.session_id,
         name: data.game_name,
         status: data.game_status,
         active_sub_state: data.active_sub_state,

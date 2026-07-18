@@ -35,11 +35,15 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: questionsError.message }, { status: 500 });
     }
 
-    const { count: playerCount } = await supabase
-      .from("players")
-      .select("*", { count: "exact", head: true })
+    const { data: sessions, error: sessionsError } = await supabase
+      .from("game_sessions")
+      .select("*, players(count)")
       .eq("game_id", gameId)
-      .neq("status", "removed");
+      .order("created_at", { ascending: false });
+
+    if (sessionsError) {
+      return NextResponse.json({ error: sessionsError.message }, { status: 500 });
+    }
 
     // Normalize choice ordering
     const normalizedQuestions = questions.map((q) => ({
@@ -47,64 +51,13 @@ export async function GET(request, { params }) {
       question_choices: [...q.question_choices].sort((a, b) => a.display_order - b.display_order)
     }));
 
-    return NextResponse.json({ game, questions: normalizedQuestions, player_count: playerCount ?? 0 });
-  } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
+    const normalizedSessions = sessions.map((s) => ({
+      ...s,
+      player_count: s.players?.[0]?.count ?? 0,
+      players: undefined
+    }));
 
-export async function PATCH(request, { params }) {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { gameId } = await params;
-    const { action } = await request.json();
-
-    // Verify ownership
-    const { data: game } = await supabase.from("games").select("id").eq("id", gameId).eq("owner_id", user.id).single();
-
-    if (!game) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (action === "start") {
-      const { data: startData, error: startError } = await supabase.rpc("start_game", { p_game_id: gameId });
-      if (startError) return NextResponse.json({ error: startError.message }, { status: 500 });
-      if (startData?.error) return NextResponse.json({ error: startData.error }, { status: 400 });
-
-      const { data: nextData, error: nextError } = await supabase.rpc("next_question", { p_game_id: gameId });
-      if (nextError) return NextResponse.json({ error: nextError.message }, { status: 500 });
-      if (nextData?.error) return NextResponse.json({ error: nextData.error }, { status: 400 });
-
-      return NextResponse.json({ started: startData, question: nextData });
-    }
-
-    if (action === "next") {
-      const { data, error } = await supabase.rpc("next_question", { p_game_id: gameId });
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      if (data?.error) return NextResponse.json({ error: data.error }, { status: 400 });
-      return NextResponse.json({ question: data });
-    }
-
-    if (action === "end") {
-      const { data: updated, error } = await supabase
-        .from("games")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", gameId)
-        .select()
-        .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated });
-    }
-
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return NextResponse.json({ game, questions: normalizedQuestions, sessions: normalizedSessions });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

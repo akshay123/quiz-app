@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data: games, error } = await supabase
       .from("games")
-      .select("*, questions!questions_game_id_fkey(count), players(count)")
+      .select("*, questions(count), game_sessions(count)")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -25,9 +25,9 @@ export async function GET() {
     const normalized = games.map((g) => ({
       ...g,
       question_count: g.questions?.[0]?.count ?? 0,
-      player_count: g.players?.[0]?.count ?? 0,
+      session_count: g.game_sessions?.[0]?.count ?? 0,
       questions: undefined,
-      players: undefined
+      game_sessions: undefined
     }));
 
     return NextResponse.json({ games: normalized });
