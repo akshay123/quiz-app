@@ -80,18 +80,19 @@ export default function GameDetailPage() {
     }
   }
 
-  async function endGame() {
+  async function publishGame() {
     setActionInProgress(true);
     try {
-      const res = await fetch(`/api/games/${gameId}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/games/publish`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" })
+        body: JSON.stringify({ gameId })
       });
       if (res.ok) {
         const data = await res.json();
-        setGame(data.updated);
-        setTimeout(() => router.push("/admin"), 2000);
+        setGame(data.game);
+      } else {
+        setError("Failed to publish game");
       }
     } catch (err) {
       setError(err.message);
