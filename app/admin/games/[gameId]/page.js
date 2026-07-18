@@ -9,6 +9,7 @@ export default function GameDetailPage() {
   const router = useRouter();
   const [game, setGame] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionInProgress, setActionInProgress] = useState(false);
@@ -17,17 +18,29 @@ export default function GameDetailPage() {
 
   useEffect(() => {
     fetchGameDetails();
+    const interval = setInterval(fetchGameDetails, 2000);
+    return () => clearInterval(interval);
   }, [gameId]);
 
   async function fetchGameDetails() {
     try {
-      const res = await fetch(`/api/games/${gameId}`);
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to load game");
+      const [gameRes, leaderboardRes] = await Promise.all([
+        fetch(`/api/games/${gameId}`),
+        fetch(`/api/games/${gameId}/leaderboard`)
+      ]);
+
+      const gameData = await gameRes.json();
+      const leaderboardData = await leaderboardRes.json();
+
+      if (!gameRes.ok) {
+        setError(gameData.error || "Failed to load game");
       } else {
-        setGame(data.game);
-        setQuestions(data.questions || []);
+        setGame(gameData.game);
+        setQuestions(gameData.questions || []);
+      }
+
+      if (leaderboardRes.ok) {
+        setLeaderboard(leaderboardData.leaderboard || []);
       }
     } catch (err) {
       setError(err.message);
@@ -101,6 +114,26 @@ export default function GameDetailPage() {
     }
   }
 
+  async function endGame() {
+    setActionInProgress(true);
+    try {
+      const res = await fetch(`/api/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGame(data.updated);
+        setTimeout(() => router.push("/admin"), 2000);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionInProgress(false);
+    }
+  }
+
   if (loading) return <main style={{ padding: "2rem" }}><p>Loading game...</p></main>;
 
   if (error) {
@@ -124,36 +157,74 @@ export default function GameDetailPage() {
 
   return (
     <main style={{ padding: "2rem" }}>
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <Link href="/admin" style={{ color: "#0f7b6c", textDecoration: "none", marginBottom: "1rem", display: "block" }}>
           ← Back to Games
         </Link>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
-          {/* Game Info & Controls */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "2rem" }}>
+          {/* Game Controls */}
           <div className="card">
             <h2 style={{ margin: "0 0 1rem" }}>{game.title}</h2>
+
             <div style={{ marginBottom: "1.5rem" }}>
               <p style={{ margin: "0.5rem 0" }}>
                 <strong>Status:</strong> <span style={{ color: "#0f7b6c", textTransform: "uppercase", fontSize: "0.9rem", fontWeight: "600" }}>
                   {game.status}
                 </span>
               </p>
+              {game.room_code && (
+                <p style={{ margin: "0.5rem 0", padding: "0.75rem", background: "#fef3c7", borderRadius: "6px", fontFamily: "monospace", fontSize: "1.1rem", fontWeight: "600", letterSpacing: "2px", textAlign: "center" }}>
+                  Code: {game.room_code}
+                </p>
+              )}
               <p style={{ margin: "0.5rem 0" }}>
                 <strong>Questions:</strong> {questions.length}
               </p>
               <p style={{ margin: "0.5rem 0" }}>
-                <strong>Max Players:</strong> {game.max_players}
-              </p>
-              <p style={{ margin: "0.5rem 0" }}>
-                <strong>Question Duration:</strong> {game.question_duration_seconds}s
+                <strong>Players:</strong> {leaderboard.length}
               </p>
             </div>
 
-            {game.description && <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>{game.description}</p>}
-
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {game.status === "draft" && (
+                <>
+                  <button
+                    onClick={publishGame}
+                    disabled={actionInProgress}
+                    style={{
+                      padding: "0.75rem",
+                      background: "#2563eb",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: actionInProgress ? "not-allowed" : "pointer",
+                      fontWeight: "600",
+                      opacity: actionInProgress ? 0.7 : 1
+                    }}
+                  >
+                    📢 Publish & Get Code
+                  </button>
+                  <button
+                    onClick={startGame}
+                    disabled={actionInProgress}
+                    style={{
+                      padding: "0.75rem",
+                      background: "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: actionInProgress ? "not-allowed" : "pointer",
+                      fontWeight: "600",
+                      opacity: actionInProgress ? 0.7 : 1
+                    }}
+                  >
+                    🎮 Start Game Now
+                  </button>
+                </>
+              )}
+
+              {game.status === "published" && (
                 <button
                   onClick={startGame}
                   disabled={actionInProgress}
@@ -176,7 +247,7 @@ export default function GameDetailPage() {
                 <>
                   <button
                     onClick={advanceQuestion}
-                    disabled={actionInProgress || !currentQuestion || game.current_question_number >= questions.length}
+                    disabled={actionInProgress || game.current_question_number >= questions.length}
                     style={{
                       padding: "0.75rem",
                       background: "#2563eb",
@@ -185,7 +256,7 @@ export default function GameDetailPage() {
                       borderRadius: "8px",
                       cursor: actionInProgress ? "not-allowed" : "pointer",
                       fontWeight: "600",
-                      opacity: actionInProgress ? 0.7 : 1
+                      opacity: (actionInProgress || game.current_question_number >= questions.length) ? 0.7 : 1
                     }}
                   >
                     → Next Question ({(game.current_question_number || 0) + 1}/{questions.length})
@@ -220,14 +291,14 @@ export default function GameDetailPage() {
           {/* Current Question */}
           <div className="card" style={{ background: currentQuestion ? "#f0fdf4" : "#f3f4f6" }}>
             <h3 style={{ margin: "0 0 1rem" }}>
-              {currentQuestion ? `Question ${game.current_question_number}/${questions.length}` : "No question active"}
+              {currentQuestion ? `Q${game.current_question_number}` : "No Q"}
             </h3>
             {currentQuestion ? (
               <>
-                <p style={{ fontSize: "1.1rem", marginBottom: "1.5rem", fontWeight: "500" }}>
+                <p style={{ fontSize: "0.95rem", marginBottom: "1rem", fontWeight: "500", lineHeight: "1.3" }}>
                   {currentQuestion.text}
                 </p>
-                <div style={{ display: "grid", gap: "0.75rem" }}>
+                <div style={{ display: "grid", gap: "0.5rem", fontSize: "0.85rem" }}>
                   {[
                     { label: "A", text: currentQuestion.option_a },
                     { label: "B", text: currentQuestion.option_b },
@@ -237,47 +308,50 @@ export default function GameDetailPage() {
                     <div
                       key={opt.label}
                       style={{
-                        padding: "0.75rem",
-                        border: `2px solid ${opt.label === currentQuestion.correct_option ? "#10b981" : "#e5e7eb"}`,
-                        borderRadius: "8px",
+                        padding: "0.5rem",
+                        border: `1px solid ${opt.label === currentQuestion.correct_option ? "#10b981" : "#e5e7eb"}`,
+                        borderRadius: "6px",
                         background: opt.label === currentQuestion.correct_option ? "#ecfdf5" : "white"
                       }}
                     >
                       <strong>{opt.label})</strong> {opt.text}
                       {opt.label === currentQuestion.correct_option && (
-                        <span style={{ color: "#10b981", marginLeft: "0.5rem", fontWeight: "600" }}>✓</span>
+                        <span style={{ color: "#10b981", marginLeft: "0.3rem", fontWeight: "600" }}>✓</span>
                       )}
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <p style={{ color: "#6b7280" }}>Start the game to display questions</p>
+              <p style={{ color: "#6b7280", fontSize: "0.9rem" }}>Publish & start game</p>
             )}
           </div>
-        </div>
 
-        {/* Questions List */}
-        <div className="card" style={{ marginTop: "2rem" }}>
-          <h3>All Questions</h3>
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                style={{
-                  padding: "0.75rem",
-                  border: `2px solid ${q.question_number === game.current_question_number ? "#2563eb" : "#e5e7eb"}`,
-                  borderRadius: "8px",
-                  background: q.question_number === game.current_question_number ? "#eff6ff" : "white"
-                }}
-              >
-                <strong>Q{q.question_number}:</strong> {q.text}
-                <div style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
-                  {q.category && <span>{q.category} • </span>}
-                  Answer: <strong>{q.correct_option}</strong>
-                </div>
-              </div>
-            ))}
+          {/* Leaderboard */}
+          <div className="card">
+            <h3 style={{ margin: "0 0 1rem" }}>🏆 Live Scores</h3>
+            <div style={{ display: "grid", gap: "0.4rem" }}>
+              {leaderboard.length === 0 ? (
+                <p style={{ color: "#6b7280", fontSize: "0.85rem" }}>Waiting for players...</p>
+              ) : (
+                leaderboard.slice(0, 15).map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: "0.5rem",
+                      background: "#f9fafb",
+                      borderRadius: "4px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "0.85rem"
+                    }}
+                  >
+                    <div>#{p.rank} {p.display_name}</div>
+                    <div style={{ fontWeight: "700", color: "#0f7b6c" }}>{p.score}</div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
