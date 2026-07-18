@@ -214,7 +214,17 @@ create policy "events_owner_read" on public.game_events
 -- FUNCTIONS: retarget every lifecycle RPC from games to game_sessions
 -- ============================================================
 
+-- CREATE OR REPLACE cannot rename an existing parameter (only its body/
+-- return type) — every function below renames its first argument from
+-- p_game_id to p_session_id, so each must be dropped first.
 drop function if exists public.publish_game(uuid);
+drop function if exists public.start_game(uuid);
+drop function if exists public.next_question(uuid);
+drop function if exists public.end_question(uuid);
+drop function if exists public.pause_game(uuid);
+drop function if exists public.resume_game(uuid);
+drop function if exists public.get_leaderboard(uuid, integer);
+drop function if exists public.remove_player(uuid, uuid, text);
 
 create or replace function public.generate_room_code()
 returns text as $$
