@@ -1,0 +1,19 @@
+# Supabase project configuration
+# This file is used by the Supabase CLI if you choose to run migrations via CLI.
+# Primary setup is done via the hosted Supabase Dashboard.
+
+[project]
+id = "your-supabase-project-ref"
+name = "multiplayer-quiz"
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback", "https://your-app.vercel.app/auth/callback"]
+jwt_expiry = 3600
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
