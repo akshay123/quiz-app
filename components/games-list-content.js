@@ -45,6 +45,20 @@ export default function GamesListContent({ user }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
           <h1>My Games</h1>
           <div style={{ display: "flex", gap: "1rem" }}>
+            <Link
+              href="/admin/import"
+              className="link-btn"
+              style={{
+                padding: "0.75rem 1rem",
+                background: "#2563eb",
+                color: "white",
+                borderRadius: "8px",
+                fontWeight: "600",
+                textDecoration: "none"
+              }}
+            >
+              📤 Upload Excel
+            </Link>
             <SeedDataButton onGameCreated={handleGameCreated} />
           </div>
         </div>

@@ -518,6 +518,49 @@ A failed save rolls back completely. No partial games are ever created.
 
 - Maximum file size: 5 MB
 - Supported formats: .xlsx, .xls
+
+### 10.10 Implemented Import Formats (v1)
+
+The initial implementation supports flexible header matching so that both the
+formal template (Section 10.3) and common third-party export formats can be
+imported without modification. Header matching is case-insensitive and ignores
+surrounding whitespace.
+
+**Question column aliases:**
+| Canonical field | Accepted headers |
+| --- | --- |
+| Order | `Order` |
+| Question | `Question`, `Question Text` |
+| Choice (1-6) | `Choice A`..`Choice F`, or `Answer 1`..`Answer 6` |
+| Correct Choice | `Correct Choice`, `Correct Answer`, `Correct Answer(s)` |
+| Explanation | `Explanation` |
+| Time Limit | `Time Limit`, `Time Limit (sec)`, `Duration` |
+| Category | `Category` |
+| Image URL | `Image URL`, `Image` |
+
+**Correct Choice value formats accepted:**
+- A letter matching a populated choice column (`A`-`F`), or
+- A 1-based number matching the position of an `Answer N` column (e.g. `3` = the
+  third answer column, whichever choice letter that maps to).
+
+Only single-correct-answer questions are supported in v1. If a cell contains
+multiple values (e.g. `"1,3"`), only the first is used and a warning is
+recorded: *"Row N: multiple correct answers given, only the first was used."*
+
+A single-sheet workbook is supported: if no sheet is named "Questions", the
+first sheet containing a recognizable header row (a "Question" column plus at
+least two choice columns) is used. This covers common quiz export formats such
+as Kahoot's bulk question export (`Question, Answer 1, Answer 2, Answer 3,
+Answer 4, Time limit (sec), Correct answer(s)`), which is used as the sample
+file for this project (see `sample-game/`).
+
+The "Game" and "Scoring" worksheets described in Sections 10.4-10.5 remain
+optional; the game name is instead collected from an in-app text field at
+upload time (Section 5.1 upload flow), since single-sheet exports have no
+place to store it. If a "Game" or "Scoring" worksheet is present, its values
+still override the corresponding defaults.
+
+
 - Macros: ignored (not executed)
 - Formulas: evaluated to their current value
 - Maximum questions per file: 500
