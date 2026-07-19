@@ -1,27 +1,27 @@
 /* ===========================================================
-   Design tokens — "peaceful and soulful"
+   Design tokens — srmd.org: warm off-white, burnt orange, rust, brown
    =========================================================== */
 :root {
-  --bg: #f6f3ec;
-  --surface: #fffdf9;
-  --surface-muted: #eef2ea;
-  --text: #2b3440;
-  --muted: #6b7280;
-  --accent: #4f7a67;
-  --accent-dark: #37594a;
-  --accent-warm: #c79a52;
-  --accent-soft: #a7a0c9;
-  --danger: #b3554a;
-  --danger-bg: #f6e8e5;
-  --success-bg: #e8f0ea;
-  --border: #e3ddd0;
+  --bg: #efece4;
+  --surface: #fffdf8;
+  --surface-muted: #f4efe1;
+  --text: #403f3e;
+  --muted: #7d7264;
+  --accent: #c66a10;
+  --accent-dark: #8e4d0e;
+  --accent-warm: #b17a11;
+  --accent-soft: #d9a668;
+  --danger: #a83c2e;
+  --danger-bg: #f7e6e0;
+  --success-bg: #f2ecd8;
+  --border: #ddd3bf;
 
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
 
-  --shadow-soft: 0 12px 30px rgba(43, 52, 64, 0.08);
-  --shadow-soft-sm: 0 4px 14px rgba(43, 52, 64, 0.07);
+  --shadow-soft: 0 12px 30px rgba(68, 50, 33, 0.12);
+  --shadow-soft-sm: 0 4px 14px rgba(68, 50, 33, 0.1);
 
   --space-1: 0.5rem;
   --space-2: 0.75rem;
@@ -30,8 +30,8 @@
   --space-5: 2rem;
   --space-6: 3rem;
 
-  --font-heading: ui-serif, Georgia, "Times New Roman", serif;
-  --font-body: "Avenir Next", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: var(--font-playfair), ui-serif, Georgia, "Times New Roman", serif;
+  --font-body: var(--font-roboto), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
 
   --transition-fast: 180ms ease;
   --transition-base: 240ms ease;
@@ -58,8 +58,8 @@ html {
 body {
   margin: 0;
   color: var(--text);
-  background: radial-gradient(circle at top right, #eef2ea 0%, transparent 46%),
-    radial-gradient(circle at bottom left, #efe9f7 0%, transparent 48%),
+  background: radial-gradient(circle at top right, #f4e6cc 0%, transparent 46%),
+    radial-gradient(circle at bottom left, #f1e1c9 0%, transparent 48%),
     var(--bg);
   font-family: var(--font-body);
   line-height: 1.5;
@@ -187,7 +187,7 @@ a:focus-visible {
 }
 
 .btn-warm:hover {
-  background: #a97e3c;
+  background: #8f6209;
 }
 
 .btn-danger {
@@ -195,7 +195,7 @@ a:focus-visible {
 }
 
 .btn-danger:hover {
-  background: #94433a;
+  background: #8a3223;
 }
 
 .link-muted {
@@ -248,7 +248,7 @@ label {
 .badge-published { background: var(--accent-soft); }
 .badge-lobby { background: var(--accent-warm); }
 .badge-active { background: var(--accent); }
-.badge-completed { background: #7c6a9c; }
+.badge-completed { background: var(--accent-dark); }
 .badge-cancelled { background: var(--danger); }
 
 .pill {
@@ -266,15 +266,15 @@ label {
 }
 
 .pill-warm {
-  background: #faf3e4;
-  border-color: #e9d4a8;
-  color: #8a6329;
+  background: #faf1de;
+  border-color: #e8cd9a;
+  color: #8a5a1f;
 }
 
 .pill-timer-urgent {
   background: var(--danger-bg);
-  color: #7a362d;
-  border-color: #e3b7ae;
+  color: #8a3223;
+  border-color: #e0b09f;
 }
 
 /* ===========================================================
@@ -358,7 +358,7 @@ label {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(43, 52, 64, 0.45);
+  background: rgba(64, 50, 33, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
