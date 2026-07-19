@@ -18,7 +18,6 @@ export async function GET(request, { params }) {
       .from("games")
       .select("*")
       .eq("id", gameId)
-      .eq("owner_id", user.id)
       .single();
 
     if (gameError || !game) {

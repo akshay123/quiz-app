@@ -15,7 +15,6 @@ export async function GET() {
     const { data: games, error } = await supabase
       .from("games")
       .select("*, questions(count), game_sessions(count)")
-      .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) {

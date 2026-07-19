@@ -18,7 +18,6 @@ export async function GET(request, { params }) {
       .from("game_sessions")
       .select("*, games!inner(id, name, owner_id), players(count)")
       .eq("id", sessionId)
-      .eq("games.owner_id", user.id)
       .single();
 
     if (sessionError || !session) {
@@ -51,16 +50,11 @@ export async function PATCH(request, { params }) {
     const { sessionId } = await params;
     const { action } = await request.json();
 
-    // Verify ownership
-    const { data: session } = await supabase
-      .from("game_sessions")
-      .select("id, games!inner(owner_id)")
-      .eq("id", sessionId)
-      .eq("games.owner_id", user.id)
-      .single();
+    // Verify the session exists (access itself is gated by RLS: any admin)
+    const { data: session } = await supabase.from("game_sessions").select("id").eq("id", sessionId).single();
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
     if (action === "start") {
