@@ -162,7 +162,10 @@ export default function GameTemplatePage() {
                 <strong>Q{q.question_order}:</strong> {q.question_text}
                 <div style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
                   {q.category && <span>{q.category} • </span>}
-                  Answer: <strong>{q.question_choices.find((c) => c.is_correct)?.choice_key}</strong>
+                  Answer:{" "}
+                  <strong>
+                    {q.question_choices.find((c) => c.is_correct)?.choice_key}) {q.question_choices.find((c) => c.is_correct)?.choice_text}
+                  </strong>
                 </div>
               </div>
             ))}

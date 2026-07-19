@@ -20,6 +20,10 @@ export default function PlayPage() {
   const [submitted, setSubmitted] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [showRecapModal, setShowRecapModal] = useState(false);
+  const [recap, setRecap] = useState(null);
+  const [recapLoading, setRecapLoading] = useState(false);
+  const [recapError, setRecapError] = useState("");
 
   // Load player session and verify
   useEffect(() => {
@@ -138,6 +142,35 @@ export default function PlayPage() {
     }
   }
 
+  async function openRecap() {
+    setShowRecapModal(true);
+    if (recap) return;
+
+    setRecapLoading(true);
+    setRecapError("");
+    try {
+      const sessionStr = localStorage.getItem("player_session");
+      const session = JSON.parse(sessionStr);
+
+      const res = await fetch("/api/players/recap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: session.session_token })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setRecapError(data.error || "Failed to load recap");
+      } else {
+        setRecap(data.questions || []);
+      }
+    } catch (err) {
+      setRecapError(err.message);
+    } finally {
+      setRecapLoading(false);
+    }
+  }
+
   if (loading) {
     return <main><p>Loading game...</p></main>;
   }
@@ -245,6 +278,55 @@ export default function PlayPage() {
     </div>
   ) : null;
 
+  const recapModal = showRecapModal ? (
+    <div className="modal-overlay" onClick={() => setShowRecapModal(false)}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 100%)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <h3 style={{ margin: 0 }}>📋 Recap</h3>
+          <button type="button" className="btn-secondary" style={{ padding: "0.4rem 0.8rem", minHeight: "auto" }} onClick={() => setShowRecapModal(false)}>
+            ✕ Close
+          </button>
+        </div>
+        {recapLoading ? (
+          <p>Loading recap...</p>
+        ) : recapError ? (
+          <p style={{ color: "var(--danger)" }}>{recapError}</p>
+        ) : (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            {(recap || []).map((q) => (
+              <div
+                key={q.question_order}
+                style={{
+                  padding: "0.85rem",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--surface)"
+                }}
+              >
+                <p style={{ margin: "0 0 0.5rem", fontWeight: "600", color: "var(--text)" }}>
+                  Q{q.question_order}. {q.question_text}
+                </p>
+                <p style={{ margin: "0 0 0.25rem", fontSize: "0.9rem", color: "var(--correct)" }}>
+                  ✓ Correct: {q.correct_choice ? `${q.correct_choice.key}) ${q.correct_choice.text}` : "—"}
+                </p>
+                {q.answered ? (
+                  <p style={{ margin: 0, fontSize: "0.9rem", color: q.was_correct ? "var(--correct)" : "var(--danger)" }}>
+                    {q.was_correct ? "✓" : "✗"} Your answer: {q.your_choice ? `${q.your_choice.key}) ${q.your_choice.text}` : "—"}
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--muted)" }}>You didn't answer this one</p>
+                )}
+                {q.explanation && (
+                  <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>{q.explanation}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <main style={{ background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)", minHeight: "100vh" }}>
       <div className="grid-responsive-2" style={{ width: "min(1000px, 100%)", margin: "0 auto" }}>
@@ -283,28 +365,59 @@ export default function PlayPage() {
                 <h2 style={{ fontSize: "1.3rem", marginBottom: "1.5rem", lineHeight: "1.4" }}>{question.question_text}</h2>
 
                 <div style={{ display: "grid", gap: "0.75rem" }}>
-                  {choices.map((choice) => (
-                    <button
-                      key={choice.id}
-                      onClick={() => !submitted && submitAnswer(choice.id)}
-                      disabled={submitted || timeLeft === 0}
-                      className={selectedChoiceId === choice.id ? "" : "btn-secondary"}
-                      style={{
-                        padding: "1rem",
-                        textAlign: "left",
-                        justifyContent: "flex-start",
-                        fontSize: "1rem",
-                        minHeight: "auto"
-                      }}
-                    >
-                      <strong>{choice.choice_key}.</strong>&nbsp;{choice.choice_text}
-                    </button>
-                  ))}
+                  {choices.map((choice) => {
+                    const revealed = submitted && lastResult?.correct_choice_id;
+                    const isCorrectChoice = revealed && choice.id === lastResult.correct_choice_id;
+                    const isWrongChoice = revealed && choice.id !== lastResult.correct_choice_id;
+                    const isMySelection = selectedChoiceId === choice.id;
+
+                    let className = isMySelection ? "" : "btn-secondary";
+                    let extraStyle = {};
+                    if (isCorrectChoice) {
+                      extraStyle = { background: "var(--correct-bg)", color: "var(--text)", border: "2px solid var(--correct)" };
+                    } else if (isWrongChoice) {
+                      extraStyle = isMySelection
+                        ? { background: "var(--danger-bg)", color: "var(--text)", border: "2px solid var(--danger)" }
+                        : { opacity: 0.6 };
+                    }
+
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => !submitted && submitAnswer(choice.id)}
+                        disabled={submitted || timeLeft === 0}
+                        className={className}
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          justifyContent: "space-between",
+                          fontSize: "1rem",
+                          minHeight: "auto",
+                          ...extraStyle
+                        }}
+                      >
+                        <span>
+                          <strong>{choice.choice_key}.</strong>&nbsp;{choice.choice_text}
+                        </span>
+                        {isCorrectChoice && <span aria-label="Correct">✓</span>}
+                        {isWrongChoice && <span aria-label="Incorrect">✗</span>}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {submitted ? (
-                  <p style={{ marginTop: "1rem", textAlign: "center", color: "var(--accent)", fontWeight: "600" }}>
-                    ✓ Answer submitted! Waiting for next question...
+                  <p
+                    style={{
+                      marginTop: "1rem",
+                      textAlign: "center",
+                      color: lastResult?.is_correct === true ? "var(--correct)" : lastResult?.is_correct === false ? "var(--danger)" : "var(--accent)",
+                      fontWeight: "600"
+                    }}
+                  >
+                    {lastResult?.is_correct === true && "✓ Correct!"}
+                    {lastResult?.is_correct === false && "✗ Not quite — see the correct answer above."}
+                    {lastResult?.is_correct === undefined && "✓ Answer submitted! Waiting for next question..."}
                     {lastResult?.points_awarded !== undefined && ` (+${lastResult.points_awarded} pts)`}
                   </p>
                 ) : timeLeft === 0 ? (
@@ -324,6 +437,11 @@ export default function PlayPage() {
                 You scored <strong>{player.total_score} points</strong>
               </p>
               {rankChip && <div style={{ textAlign: "center", marginTop: "1rem" }}>{rankChip}</div>}
+              <div style={{ textAlign: "center", marginTop: "1rem" }}>
+                <button type="button" className="btn-secondary" onClick={openRecap}>
+                  📋 View Recap
+                </button>
+              </div>
               <div className="show-mobile-only" style={{ marginTop: "1rem" }}>{quickView}</div>
             </div>
           ) : null}
@@ -362,6 +480,7 @@ export default function PlayPage() {
         </div>
       </div>
       {leaderboardModal}
+      {recapModal}
     </main>
   );
 }

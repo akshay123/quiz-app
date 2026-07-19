@@ -11,6 +11,7 @@ export default function SessionDetailPage() {
   const [playerCount, setPlayerCount] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionInProgress, setActionInProgress] = useState(false);
@@ -44,15 +45,17 @@ export default function SessionDetailPage() {
 
   async function fetchDetails() {
     try {
-      const [sessionRes, questionsRes, leaderboardRes] = await Promise.all([
+      const [sessionRes, questionsRes, leaderboardRes, progressRes] = await Promise.all([
         fetch(`/api/sessions/${sessionId}`),
         fetch(`/api/games/${gameId}`),
-        fetch(`/api/sessions/${sessionId}/leaderboard`)
+        fetch(`/api/sessions/${sessionId}/leaderboard`),
+        fetch(`/api/sessions/${sessionId}/progress`)
       ]);
 
       const sessionData = await sessionRes.json();
       const questionsData = await questionsRes.json();
       const leaderboardData = await leaderboardRes.json();
+      const progressData = await progressRes.json();
 
       if (!sessionRes.ok) {
         setError(sessionData.error || "Failed to load session");
@@ -67,6 +70,10 @@ export default function SessionDetailPage() {
 
       if (leaderboardRes.ok) {
         setLeaderboard(leaderboardData.leaderboard || []);
+      }
+
+      if (progressRes.ok) {
+        setProgress(progressData);
       }
     } catch (err) {
       setError(err.message);
@@ -249,6 +256,34 @@ export default function SessionDetailPage() {
           </div>
         </div>
 
+        {/* Answer Progress (current question only, resets each question) */}
+        {session.active_sub_state === "question_active" && progress && (
+          <div className="card" style={{ marginTop: "2rem", width: "100%" }}>
+            <h3 style={{ margin: "0 0 1rem" }}>
+              ✏️ Answer Progress — {progress.answered_count}/{progress.total_count} answered
+            </h3>
+            {progress.players.length === 0 ? (
+              <p style={{ fontSize: "0.85rem" }}>No players yet</p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                {progress.players.map((p) => (
+                  <span
+                    key={p.id}
+                    className="pill"
+                    style={
+                      p.answered
+                        ? { background: "var(--success-bg)", borderColor: "var(--accent)", color: "var(--accent-dark)" }
+                        : { opacity: 0.7 }
+                    }
+                  >
+                    {p.answered ? "✓" : "⏳"} {p.display_name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* All Questions */}
         <div className="card" style={{ marginTop: "2rem", width: "100%" }}>
           <h3>All Questions</h3>
@@ -266,7 +301,10 @@ export default function SessionDetailPage() {
                 <strong>Q{q.question_order}:</strong> {q.question_text}
                 <div style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
                   {q.category && <span>{q.category} • </span>}
-                  Answer: <strong>{q.question_choices.find((c) => c.is_correct)?.choice_key}</strong>
+                  Answer:{" "}
+                  <strong>
+                    {q.question_choices.find((c) => c.is_correct)?.choice_key}) {q.question_choices.find((c) => c.is_correct)?.choice_text}
+                  </strong>
                 </div>
               </div>
             ))}
