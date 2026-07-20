@@ -76,7 +76,8 @@ export async function POST(request) {
         active_sub_state: data.active_sub_state,
         current_question_index: data.current_question_index,
         question_started_at: data.question_started_at,
-        question_ends_at: data.question_ends_at
+        question_ends_at: data.question_ends_at,
+        revealed_correct_choice_id: data.revealed_correct_choice_id
       },
       question,
       choices

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function PlayPage() {
@@ -24,6 +24,8 @@ export default function PlayPage() {
   const [recap, setRecap] = useState(null);
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapError, setRecapError] = useState("");
+  const [rankChanges, setRankChanges] = useState({});
+  const prevRanksRef = useRef({});
 
   // Load player session and verify
   useEffect(() => {
@@ -53,7 +55,20 @@ export default function PlayPage() {
       try {
         const res = await fetch(`/api/sessions/${sessionId}/leaderboard`);
         const data = await res.json();
-        if (res.ok) setLeaderboard(data.leaderboard);
+        if (res.ok) {
+          const newLeaderboard = data.leaderboard || [];
+          const changes = {};
+          const newRanks = {};
+          newLeaderboard.forEach((p) => {
+            const prevRank = prevRanksRef.current[p.display_name];
+            if (prevRank === undefined || prevRank === p.rank) changes[p.display_name] = "same";
+            else changes[p.display_name] = p.rank < prevRank ? "up" : "down";
+            newRanks[p.display_name] = p.rank;
+          });
+          prevRanksRef.current = newRanks;
+          setRankChanges(changes);
+          setLeaderboard(newLeaderboard);
+        }
       } catch (err) {
         console.error("Failed to fetch leaderboard:", err);
       }
@@ -188,6 +203,26 @@ export default function PlayPage() {
     );
   }
 
+  function rankArrow(name) {
+    const change = rankChanges[name];
+    if (change === "up") return <span style={{ color: "var(--correct)" }}>▲</span>;
+    if (change === "down") return <span style={{ color: "var(--danger)" }}>▼</span>;
+    return <span style={{ color: "var(--muted)" }}>—</span>;
+  }
+
+  function podiumColor(rank) {
+    if (rank === 1) return "var(--accent-warm)";
+    if (rank === 2) return "var(--accent-soft)";
+    if (rank === 3) return "var(--accent-dark)";
+    return undefined;
+  }
+
+  const PODIUM_ROW_STYLE = {
+    1: { background: "#faf1de", border: "2px solid var(--accent-warm)" },
+    2: { background: "var(--surface-muted)", border: "2px solid var(--accent-soft)" },
+    3: { background: "var(--surface-muted)", border: "2px solid var(--border)" }
+  };
+
   const myRankIndex = leaderboard.findIndex((p) => p.display_name === player.display_name);
   const myEntry = myRankIndex >= 0 ? leaderboard[myRankIndex] : null;
   const top3 = leaderboard.slice(0, 3);
@@ -221,7 +256,11 @@ export default function PlayPage() {
               key={`${p.rank}-${p.display_name}`}
               className={`quick-leaderboard-row${p.display_name === player.display_name ? " is-me" : ""}`}
             >
-              <span>#{p.rank} {p.display_name}{p.display_name === player.display_name ? " (You)" : ""}</span>
+              <span>
+                {rankArrow(p.display_name)}{" "}
+                <strong style={{ color: podiumColor(p.rank) }}>#{p.rank}</strong> {p.display_name}
+                {p.display_name === player.display_name ? " (You)" : ""}
+              </span>
               <span>{p.total_score}</span>
             </div>
           ))}
@@ -229,7 +268,9 @@ export default function PlayPage() {
             <>
               <div className="quick-leaderboard-sep">···</div>
               <div className="quick-leaderboard-row is-me">
-                <span>#{myEntry.rank} {myEntry.display_name} (You)</span>
+                <span>
+                  {rankArrow(myEntry.display_name)} #{myEntry.rank} {myEntry.display_name} (You)
+                </span>
                 <span>{myEntry.total_score}</span>
               </div>
             </>
@@ -257,17 +298,23 @@ export default function PlayPage() {
                 key={`${p.rank}-${p.display_name}`}
                 style={{
                   padding: "0.75rem",
-                  background: p.display_name === player.display_name ? "var(--surface-muted)" : "var(--surface)",
+                  background: "var(--surface)",
                   borderRadius: "var(--radius-sm)",
-                  border: p.display_name === player.display_name ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  border: "1px solid var(--border)",
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center"
+                  alignItems: "center",
+                  ...(p.display_name === player.display_name
+                    ? { background: "var(--surface-muted)", border: "2px solid var(--accent)" }
+                    : PODIUM_ROW_STYLE[p.rank] || {})
                 }}
               >
-                <div style={{ fontWeight: "600", fontSize: "0.9rem" }}>
-                  #{p.rank} {p.display_name}
-                  {p.display_name === player.display_name && " (You)"}
+                <div style={{ fontWeight: "600", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  {rankArrow(p.display_name)}
+                  <span>
+                    #{p.rank} {p.display_name}
+                    {p.display_name === player.display_name && " (You)"}
+                  </span>
                 </div>
                 <div style={{ fontWeight: "700", color: "var(--accent-dark)", fontSize: "1rem" }}>{p.total_score}</div>
               </div>
@@ -341,8 +388,11 @@ export default function PlayPage() {
 
           {game.status === "published" || game.status === "lobby" ? (
             <div className="card">
-              <h2 style={{ textAlign: "center" }}>Waiting for game to start...</h2>
+              <h2 style={{ textAlign: "center" }}>🎉 You're in, {player.display_name}!</h2>
               <p style={{ textAlign: "center", margin: "1rem 0 0" }}>Your host will start the game shortly</p>
+              <p style={{ textAlign: "center", margin: "0.5rem 0 0", fontWeight: "600", color: "var(--accent-dark)" }}>
+                {leaderboard.length} player{leaderboard.length === 1 ? "" : "s"} waiting
+              </p>
             </div>
           ) : game.status === "active" ? (
             question ? (
@@ -359,6 +409,16 @@ export default function PlayPage() {
                       </div>
                     </div>
                   </div>
+                  <div style={{ height: "4px", background: "var(--border)", borderRadius: "999px", marginTop: "0.5rem", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${Math.max(0, Math.min(100, (timeLeft / 30) * 100))}%`,
+                        background: timeLeft <= 10 ? "var(--danger)" : "var(--accent)",
+                        transition: "width 0.25s linear, background 0.3s ease"
+                      }}
+                    />
+                  </div>
                   <div className="show-mobile-only">{quickView}</div>
                 </div>
 
@@ -366,12 +426,12 @@ export default function PlayPage() {
 
                 <div style={{ display: "grid", gap: "0.75rem" }}>
                   {choices.map((choice) => {
-                    const revealed = submitted && lastResult?.correct_choice_id;
-                    const isCorrectChoice = revealed && choice.id === lastResult.correct_choice_id;
-                    const isWrongChoice = revealed && choice.id !== lastResult.correct_choice_id;
+                    const revealChoiceId = lastResult?.correct_choice_id || (timeLeft === 0 ? game.revealed_correct_choice_id : null);
+                    const revealed = !!revealChoiceId;
+                    const isCorrectChoice = revealed && choice.id === revealChoiceId;
+                    const isWrongChoice = revealed && choice.id !== revealChoiceId;
                     const isMySelection = selectedChoiceId === choice.id;
 
-                    let className = isMySelection ? "" : "btn-secondary";
                     let extraStyle = {};
                     if (isCorrectChoice) {
                       extraStyle = { background: "var(--correct-bg)", color: "var(--text)", border: "2px solid var(--correct)" };
@@ -379,6 +439,8 @@ export default function PlayPage() {
                       extraStyle = isMySelection
                         ? { background: "var(--danger-bg)", color: "var(--text)", border: "2px solid var(--danger)" }
                         : { opacity: 0.6 };
+                    } else if (isMySelection) {
+                      extraStyle = { background: "var(--surface-muted)", border: "2px solid var(--accent)" };
                     }
 
                     return (
@@ -386,7 +448,7 @@ export default function PlayPage() {
                         key={choice.id}
                         onClick={() => !submitted && submitAnswer(choice.id)}
                         disabled={submitted || timeLeft === 0}
-                        className={className}
+                        className="btn-secondary"
                         style={{
                           padding: "1rem",
                           textAlign: "left",
@@ -421,7 +483,9 @@ export default function PlayPage() {
                     {lastResult?.points_awarded !== undefined && ` (+${lastResult.points_awarded} pts)`}
                   </p>
                 ) : timeLeft === 0 ? (
-                  <p style={{ marginTop: "1rem", textAlign: "center", color: "var(--danger)", fontWeight: "600" }}>⏹ Time's up!</p>
+                  <p style={{ marginTop: "1rem", textAlign: "center", color: "var(--danger)", fontWeight: "600" }}>
+                    {game.revealed_correct_choice_id ? "⏹ Time's up! The correct answer is highlighted above." : "⏹ Time's up!"}
+                  </p>
                 ) : null}
               </div>
             ) : (
@@ -460,17 +524,23 @@ export default function PlayPage() {
                   key={`${p.rank}-${p.display_name}`}
                   style={{
                     padding: "0.75rem",
-                    background: p.display_name === player.display_name ? "var(--surface-muted)" : "var(--surface)",
+                    background: "var(--surface)",
                     borderRadius: "var(--radius-sm)",
-                    border: p.display_name === player.display_name ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    border: "1px solid var(--border)",
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center"
+                    alignItems: "center",
+                    ...(p.display_name === player.display_name
+                      ? { background: "var(--surface-muted)", border: "2px solid var(--accent)" }
+                      : PODIUM_ROW_STYLE[p.rank] || {})
                   }}
                 >
-                  <div style={{ fontWeight: "600", fontSize: "0.9rem" }}>
-                    #{p.rank} {p.display_name}
-                    {p.display_name === player.display_name && " (You)"}
+                  <div style={{ fontWeight: "600", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    {rankArrow(p.display_name)}
+                    <span>
+                      #{p.rank} {p.display_name}
+                      {p.display_name === player.display_name && " (You)"}
+                    </span>
                   </div>
                   <div style={{ fontWeight: "700", color: "var(--accent-dark)", fontSize: "1rem" }}>{p.total_score}</div>
                 </div>
