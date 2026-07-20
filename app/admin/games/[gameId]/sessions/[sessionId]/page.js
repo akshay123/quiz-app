@@ -16,6 +16,7 @@ export default function SessionDetailPage() {
   const [error, setError] = useState("");
   const [actionInProgress, setActionInProgress] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const gameId = params.gameId;
   const sessionId = params.sessionId;
@@ -79,6 +80,17 @@ export default function SessionDetailPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function copyJoinLink() {
+    const link = `${window.location.origin}/play/join/${session.room_code}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
     }
   }
 
@@ -152,9 +164,19 @@ export default function SessionDetailPage() {
                 <span className={`badge badge-${session.status}`}>{session.status}</span>
               </p>
               {session.room_code && (
-                <p className="pill pill-warm" style={{ width: "100%", justifyContent: "center", fontSize: "1.1rem", letterSpacing: "2px", fontFamily: "monospace", margin: "0.5rem 0" }}>
-                  Code: {session.room_code}
-                </p>
+                <>
+                  <p className="pill pill-warm" style={{ width: "100%", justifyContent: "center", fontSize: "1.1rem", letterSpacing: "2px", fontFamily: "monospace", margin: "0.5rem 0" }}>
+                    Code: {session.room_code}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={copyJoinLink}
+                    style={{ width: "100%", margin: "0.5rem 0 0" }}
+                  >
+                    {linkCopied ? "✓ Link Copied!" : "🔗 Copy Player Link"}
+                  </button>
+                </>
               )}
               <p style={{ margin: "0.5rem 0" }}>
                 <strong>Questions:</strong> {totalQuestions}
@@ -166,12 +188,17 @@ export default function SessionDetailPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {(session.status === "published" || session.status === "lobby") && (
-                <button
-                  onClick={() => runAction("start")}
-                  disabled={actionInProgress || (session.status === "lobby" && playerCount === 0)}
-                >
-                  🎮 Start Game {session.status === "published" ? "(waiting for players)" : ""}
-                </button>
+                <>
+                  <button
+                    onClick={() => runAction("start")}
+                    disabled={actionInProgress || (session.status === "lobby" && playerCount === 0)}
+                  >
+                    🎮 Start Game {session.status === "published" ? "(waiting for players)" : ""}
+                  </button>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--muted)", textAlign: "center" }}>
+                    ⚠️ Make sure everyone has joined first — players can't join once the game starts.
+                  </p>
+                </>
               )}
 
               {session.status === "active" && (

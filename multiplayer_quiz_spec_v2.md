@@ -602,10 +602,14 @@ still override the corresponding defaults.
 ### 11.2 Sharing
 
 When a session is started, the admin sees:
-- The room code in large text with a copy button
-- A QR code that encodes the direct-join URL
-- A shareable link: `https://{domain}/join/{code}`
-- The direct-join link pre-fills the room code field
+- The room code in large text
+- A **"🔗 Copy Player Link"** button that copies a shareable direct-join URL
+  to the clipboard: `https://{domain}/play/join/{code}`
+- The direct-join link pre-fills and locks the room code field, so a player
+  arriving via the link only has to type their display name (Section 19.1)
+
+QR code generation is not yet implemented — out of scope until a real need
+for in-person/projected sharing arises.
 
 ### 11.3 Expiration
 
