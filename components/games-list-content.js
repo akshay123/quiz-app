@@ -7,18 +7,21 @@ import SeedDataButton from "@/components/seed-data-button";
 
 export default function GamesListContent({ user }) {
   const [games, setGames] = useState([]);
+  const [disabledCount, setDisabledCount] = useState(0);
+  const [showDisabled, setShowDisabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     fetchGames();
-  }, []);
+  }, [showDisabled]);
 
   async function fetchGames() {
     try {
-      const res = await fetch("/api/games");
+      const res = await fetch(`/api/games${showDisabled ? "?include_disabled=true" : ""}`);
       const data = await res.json();
       setGames(data.games || []);
+      setDisabledCount(data.disabled_count || 0);
     } catch (err) {
       console.error("Failed to fetch games:", err);
     } finally {
@@ -35,7 +38,12 @@ export default function GamesListContent({ user }) {
       <div className="container-wide">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
           <h1 style={{ margin: 0 }}>My Games</h1>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+            {disabledCount > 0 && (
+              <button type="button" className="btn-secondary" onClick={() => setShowDisabled((v) => !v)}>
+                {showDisabled ? "Hide disabled" : `Show disabled (${disabledCount})`}
+              </button>
+            )}
             <Link href="/admin/import" className="link-btn">
               📤 Upload Excel
             </Link>
@@ -58,14 +66,17 @@ export default function GamesListContent({ user }) {
               <div
                 key={game.id}
                 className="card"
-                style={{ width: "100%", cursor: "pointer" }}
+                style={{ width: "100%", cursor: "pointer", opacity: game.disabled_at ? 0.6 : 1 }}
                 onClick={() => router.push(`/admin/games/${game.id}`)}
               >
-                <div>
-                  <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
-                  <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-                    {game.question_count} question{game.question_count === 1 ? "" : "s"} • {game.session_count} session{game.session_count === 1 ? "" : "s"} run
-                  </p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "0.75rem" }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 0.5rem" }}>{game.name}</h3>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                      {game.question_count} question{game.question_count === 1 ? "" : "s"} • {game.session_count} session{game.session_count === 1 ? "" : "s"} run
+                    </p>
+                  </div>
+                  {game.disabled_at && <span className="badge badge-cancelled">Disabled</span>}
                 </div>
               </div>
             ))}

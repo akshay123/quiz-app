@@ -95,6 +95,9 @@ An administrator can:
 * Run the same game many times (Section 18.0): start a new session to get a
   fresh room code and an isolated set of players/leaderboard, without
   touching past sessions' recorded results
+* Disable a game (soft delete) to hide it from the dashboard without
+  losing its content or past session history, and re-enable it later
+  (Section 18.0)
 * Configure game rules (with live preview of scoring behavior)
 * Host a game (start, advance, pause, end)
 * View connected players and remove disruptive players
@@ -897,6 +900,16 @@ that run's final leaderboard at any time. Editing a game's questions or
 settings affects only sessions started after the edit; it does not alter
 data already recorded for past sessions.
 
+**Disabling (soft delete):** a game can be disabled instead of deleted.
+Disabling sets `disabled_at` and is fully reversible — it does not touch
+the template's content or any past session's players/answers/leaderboard.
+A disabled game:
+- Is hidden from the Dashboard (Section 18.2) by default.
+- Cannot have a new session started against it (`start_session` rejects
+  with an error) until re-enabled.
+- Leaves any already-running session untouched — disabling a game mid-game
+  does not interrupt players in an active session.
+
 ### 18.1 Login
 
 - Email and password fields
@@ -913,6 +926,10 @@ count rather than a single status badge. Opening a card goes to the game's
 page (Section 18.3), which lists every session for that game and is where
 the admin drills into a specific run's Host Console or past leaderboard.
 
+Disabled games (Section 18.0) are hidden from this grid by default. A
+**"Show disabled (N)"** toggle appears whenever at least one exists,
+revealing them dimmed with a "Disabled" badge; toggling again hides them.
+
 Primary CTA: **+ Create Game** (always visible, top-right)
 
 ### 18.3 Game Page
@@ -924,6 +941,16 @@ exists), and a **Sessions** list: every session ever run for this game
 recent first. Clicking a session opens its Host Console (Section 18.5) —
 for a completed session this is where the admin views that run's final
 leaderboard.
+
+When disabled, a banner explains the game is hidden and can't start new
+sessions (Section 18.0), and a prominent **"♻️ Enable Game"** button
+replaces "Start New Session" so recovering from a mistaken disable is easy.
+Disabling itself is deliberately harder to reach than every other action on
+this page: a small de-emphasized "Disable this game" text link sits at the
+bottom of the page (not next to the primary actions), and clicking it
+requires confirming in a prompt before anything happens — asymmetric
+friction on purpose, since disabling is easy to do by accident and
+re-enabling should never be.
 
 ### 18.4 Game Editor
 
@@ -1171,6 +1198,7 @@ games
 - id: uuid, primary key
 - owner_id: uuid, references administrators.id
 - name: text, not null
+- disabled_at: timestamp, nullable (soft delete — see Section 18.0)
 - created_at: timestamp
 - updated_at: timestamp
 ```
@@ -1609,8 +1637,7 @@ Source control:   GitHub
 POST   /api/admin/games                              Create game (template)
 GET    /api/admin/games                              List my games
 GET    /api/admin/games/{id}                         Get game details + sessions list
-PATCH  /api/admin/games/{id}                         Update game
-DELETE /api/admin/games/{id}                         Delete game
+PATCH  /api/admin/games/{id}                         Update game, or {action: disable|enable} to soft delete
 POST   /api/admin/games/{id}/upload                  Upload Excel
 POST   /api/admin/games/{id}/sessions                Start new session (fresh room code)
 GET    /api/admin/sessions/{sessionId}                Get session details

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(request) {
   try {
     const supabase = await createClient();
     const {
@@ -11,6 +11,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const includeDisabled = new URL(request.url).searchParams.get("include_disabled") === "true";
 
     const { data: games, error } = await supabase
       .from("games")
@@ -29,7 +31,10 @@ export async function GET() {
       game_sessions: undefined
     }));
 
-    return NextResponse.json({ games: normalized });
+    const disabledCount = normalized.filter((g) => g.disabled_at).length;
+    const visible = includeDisabled ? normalized : normalized.filter((g) => !g.disabled_at);
+
+    return NextResponse.json({ games: visible, disabled_count: disabledCount });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -61,3 +61,42 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PATCH(request, { params }) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { gameId } = await params;
+    const body = await request.json();
+
+    let update;
+    if (typeof body.name === "string") {
+      const trimmedName = body.name.trim();
+      if (trimmedName.length < 1 || trimmedName.length > 150) {
+        return NextResponse.json({ error: "Game name must be between 1 and 150 characters" }, { status: 400 });
+      }
+      update = { name: trimmedName };
+    } else if (body.action === "disable" || body.action === "enable") {
+      update = { disabled_at: body.action === "disable" ? new Date().toISOString() : null };
+    } else {
+      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    }
+
+    const { data: game, error } = await supabase.from("games").update(update).eq("id", gameId).select().single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ game });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
